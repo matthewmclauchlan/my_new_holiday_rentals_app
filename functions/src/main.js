@@ -1,4 +1,5 @@
 // main.js
+
 import pkg from 'node-appwrite';
 const { Client, Databases, Query, ID, Models } = pkg;
 
@@ -11,9 +12,14 @@ export default async function (context, req) {
     context.log("Actual Request:", JSON.stringify(actualReq));
 
     // Attempt to retrieve the payload from actualReq.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA.
-    let payload = actualReq && actualReq.body ? actualReq.body : context.payload || process.env.APPWRITE_FUNCTION_DATA;
+    let payload =
+      (actualReq && actualReq.body) ||
+      context.payload ||
+      process.env.APPWRITE_FUNCTION_DATA;
     if (!payload) {
-      context.error("No payload found in req.body, context.req.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA");
+      context.error(
+        "No payload found in req.body, context.req.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA"
+      );
       return { json: { error: "No payload provided" } };
     }
     
@@ -85,9 +91,9 @@ export default async function (context, req) {
     const updateData = {
       approvalStatus: payload.approvalStatus || "pending",
     };
-    // Only include approvedAt if the approvalStatus is "approved".
-    if (payload.approvalStatus === "approved") {
-      updateData.approvedAt = new Date().toISOString();
+    // If the status is either "approved" or "rejected", record the decision date.
+    if (payload.approvalStatus === "approved" || payload.approvalStatus === "rejected") {
+      updateData.decisionAt = new Date().toISOString();
     }
 
     // Update the host document.
@@ -102,7 +108,7 @@ export default async function (context, req) {
     // Return a successful JSON response.
     return { json: { success: true, updated: updatedDoc } };
   } catch (error) {
-    context.error("Function error:", error);
+    context.error("Function error:", error.message || error);
     return { json: { error: error.message } };
   }
 }

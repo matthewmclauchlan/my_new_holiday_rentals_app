@@ -13,53 +13,64 @@ import {
 import * as Linking from "expo-linking";
 import { openAuthSessionAsync } from "expo-web-browser";
 import { FilterOptions } from "@/lib/types"; // Already defined in types.ts
+import Constants from "expo-constants";
 
-// Import environment variables from the .env file via the Babel plugin
-import {
-  EXPO_PUBLIC_APPWRITE_ENDPOINT,
-  EXPO_PUBLIC_APPWRITE_PROJECT_ID,
-  EXPO_PUBLIC_APPWRITE_DATABASE_ID,
-  EXPO_PUBLIC_APPWRITE_MEDIA_BUCKET_ID,
-  EXPO_PUBLIC_APPWRITE_GALLERIES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_REVIEWS_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_BOOKINGS_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_ROLES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_BOOKING_RULES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_GUEST_DETAILS_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_PRICE_RULES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_MEDIA_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_HOUSE_RULES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_AMENITIES_COLLECTION_ID,
-  EXPO_PUBLIC_APPWRITE_HOST_COLLECTION_ID,
-  GLIDE_API_KEY,
-  GLIDE_APP_ID,
-} from "@env";
+// Safely access the configuration extra values
+const extra = Constants.manifest?.extra || Constants.expoConfig?.extra || {};
+
+// Destructure with default values
+const {
+  appwriteEndpoint = "",
+  appwriteProjectId = "",
+  appwriteDatabaseId = "",
+  appwriteMediaBucketId = "",
+  appwriteGalleriesCollectionId = "",
+  appwriteReviewsCollectionId = "",
+  appwriteAgentsCollectionId = "",
+  appwritePropertiesCollectionId = "",
+  appwriteBookingsCollectionId = "",
+  appwriteRolesCollectionId = "",
+  appwriteBookingRulesCollectionId = "",
+  appwriteGuestDetailsCollectionId = "",
+  appwritePaymentsCollectionId = "",
+  appwritePriceRulesCollectionId = "",
+  appwriteUsersCollectionId = "",
+  appwriteMediaCollectionId = "",
+  appwriteHouseRulesCollectionId = "",
+  appwriteAmenitiesCollectionId = "",
+  appwriteHostCollectionId = "",
+  glideApiKey = "",
+  glideAppId = "",
+  webhookSecret = "",
+} = extra;
 
 export const config = {
   platform: "com.spanishholidayrentals.shr",
-  endpoint: EXPO_PUBLIC_APPWRITE_ENDPOINT,
-  projectId: EXPO_PUBLIC_APPWRITE_PROJECT_ID,
-  databaseId: EXPO_PUBLIC_APPWRITE_DATABASE_ID,
-  bucketId: EXPO_PUBLIC_APPWRITE_MEDIA_BUCKET_ID,
-  galleriesCollectionId: EXPO_PUBLIC_APPWRITE_GALLERIES_COLLECTION_ID,
-  reviewsCollectionId: EXPO_PUBLIC_APPWRITE_REVIEWS_COLLECTION_ID,
-  agentsCollectionId: EXPO_PUBLIC_APPWRITE_AGENTS_COLLECTION_ID,
-  propertiesCollectionId: EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
-  bookingsCollectionId: EXPO_PUBLIC_APPWRITE_BOOKINGS_COLLECTION_ID,
-  rolesCollectionId: EXPO_PUBLIC_APPWRITE_ROLES_COLLECTION_ID,
-  bookingRulesCollectionId: EXPO_PUBLIC_APPWRITE_BOOKING_RULES_COLLECTION_ID,
-  guestDetailsCollectionId: EXPO_PUBLIC_APPWRITE_GUEST_DETAILS_COLLECTION_ID,
-  paymentsCollectionId: EXPO_PUBLIC_APPWRITE_PAYMENTS_COLLECTION_ID,
-  priceRulesCollectionId: EXPO_PUBLIC_APPWRITE_PRICE_RULES_COLLECTION_ID,
-  usersCollectionId: EXPO_PUBLIC_APPWRITE_USERS_COLLECTION_ID,
-  mediaCollectionId: EXPO_PUBLIC_APPWRITE_MEDIA_COLLECTION_ID,
-  houseRulesCollectionId: EXPO_PUBLIC_APPWRITE_HOUSE_RULES_COLLECTION_ID,
-  amenitiesCollectionId: EXPO_PUBLIC_APPWRITE_AMENITIES_COLLECTION_ID,
-  hostCollectionId: EXPO_PUBLIC_APPWRITE_HOST_COLLECTION_ID,
+  endpoint: appwriteEndpoint,
+  projectId: appwriteProjectId,
+  databaseId: appwriteDatabaseId,
+  bucketId: appwriteMediaBucketId,
+  galleriesCollectionId: appwriteGalleriesCollectionId,
+  reviewsCollectionId: appwriteReviewsCollectionId,
+  agentsCollectionId: appwriteAgentsCollectionId,
+  propertiesCollectionId: appwritePropertiesCollectionId,
+  bookingsCollectionId: appwriteBookingsCollectionId,
+  rolesCollectionId: appwriteRolesCollectionId,
+  bookingRulesCollectionId: appwriteBookingRulesCollectionId,
+  guestDetailsCollectionId: appwriteGuestDetailsCollectionId,
+  paymentsCollectionId: appwritePaymentsCollectionId,
+  priceRulesCollectionId: appwritePriceRulesCollectionId,
+  usersCollectionId: appwriteUsersCollectionId,
+  mediaCollectionId: appwriteMediaCollectionId,
+  houseRulesCollectionId: appwriteHouseRulesCollectionId,
+  amenitiesCollectionId: appwriteAmenitiesCollectionId,
+  hostCollectionId: appwriteHostCollectionId,
+};
+
+export const glideConfig = {
+  glideApiKey,
+  glideAppId,
+  webhookSecret,
 };
 
 export const client = new Client()
@@ -145,6 +156,8 @@ export async function logout() {
     return false;
   }
 }
+
+
 
 /**
  * Fetch roles for a user.
@@ -478,11 +491,6 @@ export async function createProperty(data: {
   }
 }
 
-/**
- * Create or update a host profile.
- * This function uses a "create or update" approach so that if a host profile already exists for a user,
- * it is updated rather than creating a duplicate document.
- */
 export async function upsertHostProfile(data: {
   userId: string;
   fullName: string;
@@ -491,18 +499,24 @@ export async function upsertHostProfile(data: {
   termsAccepted?: boolean;
 }): Promise<Models.Document | null> {
   try {
+    // Check for required fields
     if (!data.userId || !data.fullName || !data.phoneNumber) {
       throw new Error("Missing required host signup fields");
     }
+
     const hostCollId = getHostCollectionIdOrThrow();
     const currentTime = new Date().toISOString();
+
+    // Check if a host profile already exists for the given userId.
     const existingProfiles = await databases.listDocuments<Models.Document>(
       config.databaseId,
       hostCollId,
       [Query.equal("userId", data.userId)]
     );
+
     let response: Models.Document;
     if (existingProfiles.documents.length > 0) {
+      // Update the existing host profile.
       const existingProfile = existingProfiles.documents[0];
       response = await databases.updateDocument<Models.Document>(
         config.databaseId,
@@ -511,29 +525,33 @@ export async function upsertHostProfile(data: {
         { ...data, updatedAt: currentTime }
       );
     } else {
+      // Create a new host profile with approvalStatus set to "pending".
       response = await databases.createDocument<Models.Document>(
         config.databaseId,
         hostCollId,
         ID.unique(),
         {
           ...data,
-          approvalStatus: false,
+          approvalStatus: "pending", // New profile marked as pending
           createdAt: currentTime,
           updatedAt: currentTime,
         }
       );
     }
-    // Send host application data to Glide (adjust column names if necessary).
+
+    // Send host application data to Glide.
+    // This payload also uses "pending" as the initial status.
     await sendHostApplicationToGlide({
       userId: data.userId,
       fullName: data.fullName,
       phoneNumber: data.phoneNumber,
       hostDocumentId: data.hostDocumentId || "",
       submissionDate: currentTime,
-      approvalStatus: "false",
+      approvalStatus: "pending", // Sends "pending" to Glide
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
     });
+    
     return response;
   } catch (error: any) {
     console.error("❌ Error upserting host profile:", error.message || error);
@@ -542,7 +560,8 @@ export async function upsertHostProfile(data: {
 }
 
 /**
- * Send host application data to Glide for moderation.
+ * Send Host Application to Glide:
+ * This function sends a payload to Glide for moderation.
  */
 export async function sendHostApplicationToGlide(data: {
   userId: string;
@@ -556,7 +575,7 @@ export async function sendHostApplicationToGlide(data: {
 }): Promise<void> {
   try {
     const payload = {
-      appID: GLIDE_APP_ID,
+      appID: glideAppId, // Should be defined in your configuration
       mutations: [
         {
           kind: "add-row-to-table",
@@ -580,7 +599,7 @@ export async function sendHostApplicationToGlide(data: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${GLIDE_API_KEY}`,
+        "Authorization": `Bearer ${glideApiKey}`, // Should be defined in your configuration
       },
       body: JSON.stringify(payload),
     });
@@ -594,6 +613,7 @@ export async function sendHostApplicationToGlide(data: {
     console.error("❌ Error sending host application to Glide:", error.message || error);
   }
 }
+
 
 /**
  * Send property listing data to Glide for moderation.
@@ -619,7 +639,7 @@ export async function sendPropertyListingToGlide(data: {
 }): Promise<void> {
   try {
     const payload = {
-      appID: GLIDE_APP_ID,
+      appID: glideAppId,
       mutations: [
         {
           kind: "add-row-to-table",
@@ -652,7 +672,7 @@ export async function sendPropertyListingToGlide(data: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${GLIDE_API_KEY}`,
+        "Authorization": `Bearer ${glideApiKey}`,
       },
       body: JSON.stringify(payload),
     });

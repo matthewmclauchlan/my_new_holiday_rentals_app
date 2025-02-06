@@ -6,11 +6,11 @@ export default async function (context, req) {
   try {
     context.log("Function starting...");
 
-    // Use req if available; otherwise, try context.req.
+    // Use req if available; otherwise, use context.req.
     const actualReq = req || context.req;
     context.log("Actual Request:", JSON.stringify(actualReq));
 
-    // Attempt to retrieve payload from actualReq.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA.
+    // Attempt to retrieve the payload from actualReq.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA.
     let payload = actualReq && actualReq.body ? actualReq.body : context.payload || process.env.APPWRITE_FUNCTION_DATA;
     if (!payload) {
       context.error("No payload found in req.body, context.req.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA");
@@ -28,7 +28,7 @@ export default async function (context, req) {
     }
     context.log("Payload received:", JSON.stringify(payload));
 
-    // 2. Validate the webhook secret.
+    // Validate the webhook secret.
     const expectedSecret = process.env.WEBHOOK_SECRET;
     if (payload.webhookSecret !== expectedSecret) {
       context.log("Webhook secret mismatch. Received:", payload.webhookSecret);
@@ -36,7 +36,7 @@ export default async function (context, req) {
     }
     context.log("Webhook secret validated.");
 
-    // 3. Retrieve Appwrite configuration from environment variables.
+    // Retrieve Appwrite configuration from environment variables.
     const {
       APPWRITE_FUNCTION_API_ENDPOINT,
       APPWRITE_FUNCTION_PROJECT_ID,
@@ -56,7 +56,7 @@ export default async function (context, req) {
       return { json: { error: "Server configuration error: missing environment variables" } };
     }
 
-    // 4. Initialize the Appwrite client.
+    // Initialize the Appwrite client.
     const client = new Client()
       .setEndpoint(APPWRITE_FUNCTION_API_ENDPOINT)
       .setProject(APPWRITE_FUNCTION_PROJECT_ID)
@@ -65,7 +65,7 @@ export default async function (context, req) {
     const databases = new Databases(client);
     context.log("Appwrite client initialized.");
 
-    // 5. Query the host document by userId from the payload.
+    // Query the host document by userId from the payload.
     context.log("Querying host document for userId:", payload.userId);
     const hostDocs = await databases.listDocuments(
       APPWRITE_DATABASE_ID,
@@ -81,20 +81,25 @@ export default async function (context, req) {
     const hostDoc = hostDocs.documents[0];
     context.log("Found host document:", JSON.stringify(hostDoc));
 
-    // 6. Update the host document to mark it as approved.
-    // Here, we update the status based on the payload.
+    // Build the update data:
+    const updateData = {
+      approvalStatus: payload.approvalStatus || "pending",
+    };
+    // Only include approvedAt if the approvalStatus is "approved".
+    if (payload.approvalStatus === "approved") {
+      updateData.approvedAt = new Date().toISOString();
+    }
+
+    // Update the host document.
     const updatedDoc = await databases.updateDocument(
       APPWRITE_DATABASE_ID,
       APPWRITE_HOST_COLLECTION_ID,
       hostDoc.$id,
-      {
-        approvalStatus: payload.approvalStatus || "pending", // use the payload value or default to "pending"
-        approvedAt: payload.approvalStatus === "approved" ? new Date().toISOString() : null,
-      }
+      updateData
     );
     context.log("Host document updated successfully:", JSON.stringify(updatedDoc));
 
-    // 7. Return a successful JSON response.
+    // Return a successful JSON response.
     return { json: { success: true, updated: updatedDoc } };
   } catch (error) {
     context.error("Function error:", error);

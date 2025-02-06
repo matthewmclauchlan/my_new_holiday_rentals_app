@@ -1,5 +1,6 @@
 // main.js
-import { Client, Databases, Query, ID, Models } from "node-appwrite";
+import pkg from 'node-appwrite';
+const { Client, Databases, Query, ID, Models } = pkg;
 
 export default async function (context, req) {
   try {
@@ -9,14 +10,14 @@ export default async function (context, req) {
     const actualReq = req || context.req;
     context.log("Actual Request:", JSON.stringify(actualReq));
 
-    // Attempt to retrieve the payload from actualReq.body or context.payload or process.env.APPWRITE_FUNCTION_DATA.
+    // Attempt to retrieve payload from actualReq.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA.
     let payload = actualReq && actualReq.body ? actualReq.body : context.payload || process.env.APPWRITE_FUNCTION_DATA;
     if (!payload) {
       context.error("No payload found in req.body, context.req.body, context.payload, or process.env.APPWRITE_FUNCTION_DATA");
       return { json: { error: "No payload provided" } };
     }
     
-    // If payload is a string, parse it.
+    // If payload is a string, try parsing it.
     if (typeof payload === "string") {
       try {
         payload = JSON.parse(payload);
@@ -81,14 +82,13 @@ export default async function (context, req) {
     context.log("Found host document:", JSON.stringify(hostDoc));
 
     // 6. Update the host document to mark it as approved.
+    // Here, we update the status based on the payload.
     const updatedDoc = await databases.updateDocument(
       APPWRITE_DATABASE_ID,
       APPWRITE_HOST_COLLECTION_ID,
       hostDoc.$id,
       {
-        // Here you could decide how to update based on the payload.
-        // For now, we're assuming the webhook is meant to approve the application.
-        approvalStatus: payload.approvalStatus || "pending", // You can allow payload to override if desired
+        approvalStatus: payload.approvalStatus || "pending", // use the payload value or default to "pending"
         approvedAt: payload.approvalStatus === "approved" ? new Date().toISOString() : null,
       }
     );

@@ -528,7 +528,7 @@ export async function upsertHostProfile(data: {
         ID.unique(),
         {
           ...data,
-          isApproved: false,
+          approvalStatus: false,
           createdAt: currentTime,
           updatedAt: currentTime,
         }
@@ -541,7 +541,7 @@ export async function upsertHostProfile(data: {
       phoneNumber: data.phoneNumber,
       hostDocumentId: data.hostDocumentId || "",
       submissionDate: currentTime,
-      status: "pending",
+      status: "false",
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
     });

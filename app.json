@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "restate",
-    "slug": "restate",
+    "name": "shr_project",
+    "slug": "shr_project",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

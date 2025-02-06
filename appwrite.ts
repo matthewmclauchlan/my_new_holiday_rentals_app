@@ -517,7 +517,7 @@ export async function upsertHostProfile(data: {
         ID.unique(),
         {
           ...data,
-          isApproved: false,
+          approvalStatus: false,
           createdAt: currentTime,
           updatedAt: currentTime,
         }
@@ -530,7 +530,7 @@ export async function upsertHostProfile(data: {
       phoneNumber: data.phoneNumber,
       hostDocumentId: data.hostDocumentId || "",
       submissionDate: currentTime,
-      status: "pending",
+      approvalStatus: "false",
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
     });
@@ -550,7 +550,7 @@ export async function sendHostApplicationToGlide(data: {
   phoneNumber: string;
   hostDocumentId: string;
   submissionDate: string;
-  status: string;
+  approvalStatus: string;
   moderationComments: string;
   termsAccepted: string;
 }): Promise<void> {
@@ -566,7 +566,7 @@ export async function sendHostApplicationToGlide(data: {
             "LpPuZ": data.phoneNumber,
             "dyeiF": data.hostDocumentId,
             "FozJh": data.submissionDate,
-            "vObBS": data.status,
+            "vObBS": data.approvalStatus,
             "6sUf9": data.moderationComments,
             "0O96C": data.fullName,
             "KnJ6a": data.termsAccepted,

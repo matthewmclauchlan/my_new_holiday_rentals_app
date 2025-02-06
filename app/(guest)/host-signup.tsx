@@ -49,7 +49,7 @@ async function upsertHostApplication(data: {
     userId: data.userId,
     fullName: data.fullName,
     phoneNumber: data.phoneNumber,
-    isApproved: false,
+    approvalStatus: false,
     createdAt: now,
     updatedAt: now,
     hostDocumentId: data.hostDocumentId,

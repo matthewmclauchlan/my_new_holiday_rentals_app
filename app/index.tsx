@@ -10,8 +10,8 @@ export default function Main() {
   if (!user) return <Redirect href="/sign-in" />;
 
   // If the user has an approved host profile, redirect to the host tabs.
-  const isApprovedHost = user.hostProfile && user.hostProfile.isApproved;
-  return isApprovedHost ? (
+  const approvalStatusHost = user.hostProfile && user.hostProfile.approvalStatus;
+  return approvalStatusHost ? (
     <Redirect href="/(host)/hostTabs" />
   ) : (
     <Redirect href="/(guest)/guestTabs" />

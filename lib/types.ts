@@ -58,7 +58,7 @@ export interface HostProfile {
   userId: string;
   fullName: string;
   phoneNumber: string;
-  isApproved: boolean;
+  approvalStatus: boolean;
   createdAt: string;
   updatedAt: string;
   hostDocumentId: string;

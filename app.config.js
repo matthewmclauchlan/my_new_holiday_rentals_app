@@ -7,7 +7,7 @@ export default {
     slug: "shr_project",
     version: "1.0.0",
     orientation: "portrait",
-    icon: "./assets/icon.png",
+    icon: "./assets/icons/dumbell.png",
     userInterfaceStyle: "light",
     splash: {
       image: "./assets/splash.png",

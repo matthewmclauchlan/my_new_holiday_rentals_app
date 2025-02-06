@@ -5,9 +5,15 @@ export default async function (context, req) {
   try {
     context.log("Function starting...");
 
-    // 1. Retrieve the payload from the HTTP request.
-    //    The payload can be in req.body as an object or string.
-    let payload = req.body;
+    // 1. Retrieve the payload.
+    //    Try to get it from req.body, then from context.payload.
+    let payload = req && req.body ? req.body : context.payload;
+    if (!payload) {
+      context.error("No payload found in req.body or context.payload");
+      return { json: { error: "No payload provided" } };
+    }
+    
+    // If payload is a string, try parsing it.
     if (typeof payload === "string") {
       try {
         payload = JSON.parse(payload);
@@ -77,7 +83,7 @@ export default async function (context, req) {
       APPWRITE_HOST_COLLECTION_ID,
       hostDoc.$id,
       {
-        isApproved: true,
+        approvalStatus: true,
         approvedAt: new Date().toISOString(),
       }
     );

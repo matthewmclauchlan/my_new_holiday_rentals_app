@@ -93,7 +93,7 @@ export default async function (context, req) {
     };
     // If the status is either "approved" or "rejected", record the decision date.
     if (payload.approvalStatus === "approved" || payload.approvalStatus === "rejected") {
-      updateData.decisionAt = new Date().toISOString();
+      updateData.decisionDate = new Date().toISOString();
     }
 
     // Update the host document.

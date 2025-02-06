@@ -83,7 +83,7 @@ export default async function (context, req) {
       APPWRITE_HOST_COLLECTION_ID,
       hostDoc.$id,
       {
-        approvalStatus: true,
+        approvalStatus: payload.approvalStatus ? "approved" : "rejected", // if payload.approvalStatus is a boolean
         approvedAt: new Date().toISOString(),
       }
     );

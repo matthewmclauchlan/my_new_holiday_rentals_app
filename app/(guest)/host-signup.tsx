@@ -49,7 +49,7 @@ async function upsertHostApplication(data: {
     userId: data.userId,
     fullName: data.fullName,
     phoneNumber: data.phoneNumber,
-    approvalStatus: false,
+    approvalStatus: "pending",  // Set initial status to "pending"
     createdAt: now,
     updatedAt: now,
     hostDocumentId: data.hostDocumentId,
@@ -192,7 +192,7 @@ export default function HostSignupWizard() {
         throw new Error("File URL is empty");
       }
 
-      // Call only upsertHostProfile to create or update the host profile.
+      // Call upsertHostProfile to create or update the host profile with approvalStatus set to "pending".
       await upsertHostProfile({
         userId: extendedUser.$id,
         fullName,
@@ -421,3 +421,4 @@ const modalStyles = StyleSheet.create({
   body: { fontSize: 16, lineHeight: 24, color: "#333" },
   buttonRow: { padding: 20 },
 });
+

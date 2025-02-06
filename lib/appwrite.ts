@@ -489,11 +489,6 @@ export async function createProperty(data: {
   }
 }
 
-/**
- * Create or update a host profile.
- * This function uses a "create or update" approach so that if a host profile already exists for a user,
- * it is updated rather than creating a duplicate document.
- */
 export async function upsertHostProfile(data: {
   userId: string;
   fullName: string;
@@ -502,18 +497,24 @@ export async function upsertHostProfile(data: {
   termsAccepted?: boolean;
 }): Promise<Models.Document | null> {
   try {
+    // Check for required fields
     if (!data.userId || !data.fullName || !data.phoneNumber) {
       throw new Error("Missing required host signup fields");
     }
+
     const hostCollId = getHostCollectionIdOrThrow();
     const currentTime = new Date().toISOString();
+
+    // Check if a host profile already exists for the given userId.
     const existingProfiles = await databases.listDocuments<Models.Document>(
       config.databaseId,
       hostCollId,
       [Query.equal("userId", data.userId)]
     );
+
     let response: Models.Document;
     if (existingProfiles.documents.length > 0) {
+      // Update the existing host profile.
       const existingProfile = existingProfiles.documents[0];
       response = await databases.updateDocument<Models.Document>(
         config.databaseId,
@@ -522,29 +523,33 @@ export async function upsertHostProfile(data: {
         { ...data, updatedAt: currentTime }
       );
     } else {
+      // Create a new host profile with approvalStatus set to "pending".
       response = await databases.createDocument<Models.Document>(
         config.databaseId,
         hostCollId,
         ID.unique(),
         {
           ...data,
-          approvalStatus: false,
+          approvalStatus: "pending", // New profile marked as pending
           createdAt: currentTime,
           updatedAt: currentTime,
         }
       );
     }
-    // Send host application data to Glide (adjust column names if necessary).
+
+    // Send host application data to Glide.
+    // This payload also uses "pending" as the initial status.
     await sendHostApplicationToGlide({
       userId: data.userId,
       fullName: data.fullName,
       phoneNumber: data.phoneNumber,
       hostDocumentId: data.hostDocumentId || "",
       submissionDate: currentTime,
-      status: "false",
+      approvalStatus: "pending", // Sends "pending" to Glide
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
     });
+    
     return response;
   } catch (error: any) {
     console.error("❌ Error upserting host profile:", error.message || error);
@@ -553,7 +558,8 @@ export async function upsertHostProfile(data: {
 }
 
 /**
- * Send host application data to Glide for moderation.
+ * Send Host Application to Glide:
+ * This function sends a payload to Glide for moderation.
  */
 export async function sendHostApplicationToGlide(data: {
   userId: string;
@@ -561,13 +567,13 @@ export async function sendHostApplicationToGlide(data: {
   phoneNumber: string;
   hostDocumentId: string;
   submissionDate: string;
-  status: string;
+  approvalStatus: string;
   moderationComments: string;
   termsAccepted: string;
 }): Promise<void> {
   try {
     const payload = {
-      appID: glideAppId,
+      appID: glideAppId, // Should be defined in your configuration
       mutations: [
         {
           kind: "add-row-to-table",
@@ -577,7 +583,7 @@ export async function sendHostApplicationToGlide(data: {
             "LpPuZ": data.phoneNumber,
             "dyeiF": data.hostDocumentId,
             "FozJh": data.submissionDate,
-            "vObBS": data.status,
+            "vObBS": data.approvalStatus,
             "6sUf9": data.moderationComments,
             "0O96C": data.fullName,
             "KnJ6a": data.termsAccepted,
@@ -591,7 +597,7 @@ export async function sendHostApplicationToGlide(data: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${glideApiKey}`,
+        "Authorization": `Bearer ${glideApiKey}`, // Should be defined in your configuration
       },
       body: JSON.stringify(payload),
     });
@@ -605,6 +611,7 @@ export async function sendHostApplicationToGlide(data: {
     console.error("❌ Error sending host application to Glide:", error.message || error);
   }
 }
+
 
 /**
  * Send property listing data to Glide for moderation.

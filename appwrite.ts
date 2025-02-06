@@ -497,18 +497,19 @@ export async function upsertHostProfile(data: {
   phoneNumber: string;
   hostDocumentId?: string;
   termsAccepted?: boolean;
+  approvalStatus?: string; // Optional field for updating to "approved" or "rejected"
 }): Promise<Models.Document | null> {
   try {
-    // Check for required fields
     if (!data.userId || !data.fullName || !data.phoneNumber) {
       throw new Error("Missing required host signup fields");
     }
 
     const hostCollId = getHostCollectionIdOrThrow();
     const currentTime = new Date().toISOString();
+    // Default status is "pending" if no explicit decision is provided.
+    const desiredStatus = data.approvalStatus ? data.approvalStatus : "pending";
 
-    // Check if a host profile already exists for the given userId.
-    const existingProfiles = await databases.listDocuments<Models.Document>(
+    const existingProfiles = await databases.listDocuments(
       config.databaseId,
       hostCollId,
       [Query.equal("userId", data.userId)]
@@ -516,48 +517,59 @@ export async function upsertHostProfile(data: {
 
     let response: Models.Document;
     if (existingProfiles.documents.length > 0) {
-      // Update the existing host profile.
       const existingProfile = existingProfiles.documents[0];
-      response = await databases.updateDocument<Models.Document>(
+      const updateData: any = {
+        ...data,
+        updatedAt: currentTime,
+        approvalStatus: desiredStatus,
+      };
+      // If a decision is made ("approved" or "rejected"), record the decision date.
+      if (desiredStatus === "approved" || desiredStatus === "rejected") {
+        updateData.decisionDate = new Date().toISOString();
+      } else {
+        updateData.decisionDate = null;
+      }
+      response = await databases.updateDocument(
         config.databaseId,
         hostCollId,
         existingProfile.$id,
-        { ...data, updatedAt: currentTime }
+        updateData
       );
     } else {
-      // Create a new host profile with approvalStatus set to "pending".
-      response = await databases.createDocument<Models.Document>(
+      response = await databases.createDocument(
         config.databaseId,
         hostCollId,
         ID.unique(),
         {
           ...data,
-          approvalStatus: "pending", // New profile marked as pending
+          approvalStatus: desiredStatus,
           createdAt: currentTime,
           updatedAt: currentTime,
+          // Set decisionDate only if the status is not pending.
+          decisionDate: desiredStatus === "pending" ? null : new Date().toISOString(),
         }
       );
     }
 
-    // Send host application data to Glide.
-    // This payload also uses "pending" as the initial status.
     await sendHostApplicationToGlide({
       userId: data.userId,
       fullName: data.fullName,
       phoneNumber: data.phoneNumber,
       hostDocumentId: data.hostDocumentId || "",
       submissionDate: currentTime,
-      approvalStatus: "pending", // Sends "pending" to Glide
+      approvalStatus: desiredStatus,
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
+      decisionDate: currentTime,
     });
-    
+
     return response;
   } catch (error: any) {
     console.error("❌ Error upserting host profile:", error.message || error);
     throw error;
   }
 }
+
 
 /**
  * Send Host Application to Glide:
@@ -570,12 +582,13 @@ export async function sendHostApplicationToGlide(data: {
   hostDocumentId: string;
   submissionDate: string;
   approvalStatus: string;
+  decisionDate: string;
   moderationComments: string;
   termsAccepted: string;
 }): Promise<void> {
   try {
     const payload = {
-      appID: glideAppId, // Should be defined in your configuration
+      appID: glideAppId,
       mutations: [
         {
           kind: "add-row-to-table",
@@ -586,6 +599,7 @@ export async function sendHostApplicationToGlide(data: {
             "dyeiF": data.hostDocumentId,
             "FozJh": data.submissionDate,
             "vObBS": data.approvalStatus,
+            "KJyXK": data.decisionDate,
             "6sUf9": data.moderationComments,
             "0O96C": data.fullName,
             "KnJ6a": data.termsAccepted,
@@ -599,7 +613,7 @@ export async function sendHostApplicationToGlide(data: {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${glideApiKey}`, // Should be defined in your configuration
+        "Authorization": `Bearer ${glideApiKey}`,
       },
       body: JSON.stringify(payload),
     });
@@ -613,6 +627,7 @@ export async function sendHostApplicationToGlide(data: {
     console.error("❌ Error sending host application to Glide:", error.message || error);
   }
 }
+
 
 
 /**

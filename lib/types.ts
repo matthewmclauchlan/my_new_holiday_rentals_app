@@ -62,6 +62,7 @@ export interface HostProfile {
   createdAt: string;
   updatedAt: string;
   hostDocumentId: string;
+  descisionDate: string;
   termsAccepted: string;
 }
 

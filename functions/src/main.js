@@ -29,7 +29,7 @@ export default async function (context, req) {
     context.log("Payload received:", JSON.stringify(payload));
 
     // Validate the webhook secret.
-    const expectedSecret = process.env.WEBHOOK_SECRET;
+    const expectedSecret = process.env.webhookSecret;
     if (payload.webhookSecret !== expectedSecret) {
       context.log("Webhook secret mismatch. Received:", payload.webhookSecret);
       return { json: { error: "Unauthorized: invalid webhook secret" } };

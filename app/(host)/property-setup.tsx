@@ -152,7 +152,7 @@ export default function PropertySetupWizard() {
         address: values.address,
         bedrooms: Number(values.bedrooms),
         bathrooms: Number(values.bathrooms),
-        rating: 0, // Default rating since it's not user-input.
+        rating: "5",
         area: Number(values.area),
         amenities: values.selectedAmenities, // List of amenity IDs.
         houseRulesId: "", // Not implemented in this example.

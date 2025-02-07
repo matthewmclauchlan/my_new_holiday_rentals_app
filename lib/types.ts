@@ -38,7 +38,7 @@ export interface Property {
   address: string;
   bedrooms: number;
   bathrooms: number;
-  rating: 1 | 2 | 3 | 4 | 5;
+  rating: "1" | "2" | "3" | "4" | "5";
   area: number;
   amenities: string[]; // Typically an array of IDs or names from your amenities collection
   houseRulesId: string;

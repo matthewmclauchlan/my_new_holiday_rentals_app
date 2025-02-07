@@ -414,7 +414,7 @@ export async function createProperty(data: {
   address: string;
   bedrooms: number;
   bathrooms: number;
-  rating: number;
+  rating: "1" | "2" | "3" | "4" | "5";
   area: number;
   amenities: string[];
   houseRulesId: string;

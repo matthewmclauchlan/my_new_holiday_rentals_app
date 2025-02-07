@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useAppwrite } from "@/lib/useAppwrite";
-import { getAmenities } from "@/lib/data"; // Verify this import is correct!
+import { getAmenities } from "@/lib/appwrite"; // Updated import path!
 import { Amenity, AmenitySection } from "@/lib/types";
 import { groupAmenitiesByFirstLetter } from "@/lib/utils";
 
@@ -53,7 +53,7 @@ export default function AmenitiesPicker({
 
   return (
     <SectionList
-      nestedScrollEnabled={true} // Allows inner list to scroll when nested
+      nestedScrollEnabled={true}
       sections={sections}
       keyExtractor={(item) => item.$id}
       renderSectionHeader={({ section: { title } }) => (

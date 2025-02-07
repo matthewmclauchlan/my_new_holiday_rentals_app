@@ -1,9 +1,3 @@
-import { databases, config } from "@/lib/appwrite"; // Assuming your appwrite.ts exports these if needed
-import { Query, Models } from "react-native-appwrite"; // Import directly from the package
-import { Amenity } from "@/lib/types";
-
-
-
 export const galleryImages = [
     "https://images.unsplash.com/photo-1507089947368-19c1da9775ae?q=60&w=640&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     "https://unsplash.com/photos/comfort-room-with-white-bathtub-and-brown-wooden-cabinets-CMejBwGAdGk",
@@ -49,36 +43,3 @@ export const galleryImages = [
     "https://images.unsplash.com/photo-1583608205776-bfd35f0d9f83?q=60&w=640&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
     "https://images.unsplash.com/photo-1720432972486-2d53db5badf0?q=60&w=640&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D",
   ];
-
-  export async function getAmenities(): Promise<Amenity[]> {
-    try {
-      const response = await databases.listDocuments<Models.Document>(
-        config.databaseId,
-        config.amenitiesCollectionId,
-        [Query.orderAsc("name")]
-      );
-      // Map the raw documents to the Amenity type
-      return response.documents.map((doc) => ({
-        $id: doc.$id,
-        name: doc.name,
-        icon: doc.icon,
-      }));
-    } catch (error) {
-      console.error("Error fetching amenities:", error);
-      return [];
-    }
-  }
-  
-  export async function getHouseRules(): Promise<Models.Document[]> {
-    try {
-      const response = await databases.listDocuments<Models.Document>(
-        config.databaseId,
-        config.houseRulesCollectionId,
-        [Query.orderAsc("rules")]
-      );
-      return response.documents;
-    } catch (error) {
-      console.error("Error fetching house rules:", error);
-      return [];
-    }
-  }

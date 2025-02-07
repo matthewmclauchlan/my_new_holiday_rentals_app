@@ -44,6 +44,7 @@
     "react-native": "0.76.3",
     "react-native-appwrite": "^0.5.0",
     "react-native-calendars": "^1.1308.1",
+    "react-native-collapsible": "^1.6.2",
     "react-native-country-picker-modal": "^2.0.0",
     "react-native-gesture-handler": "~2.20.2",
     "react-native-reanimated": "~3.16.1",
@@ -52,6 +53,7 @@
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "~0.19.13",
     "react-native-webview": "13.12.5",
+    "shr_project": "file:",
     "tailwindcss": "^3.4.16",
     "use-debounce": "^10.0.4",
     "yup": "^1.6.1"

@@ -39,7 +39,7 @@ const HostTabsLayout = () => {
       }}
     >
       <Tabs.Screen
-        name="index"
+        name="hostDashboard"
         options={{
           title: "Home",
           headerShown: false,
@@ -49,32 +49,22 @@ const HostTabsLayout = () => {
         }}
       />
       <Tabs.Screen
-        name="manage-properties"
-        options={{
-          title: "Properties",
-          headerShown: false,
-          tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.bell} title="Properties" />
-          ),
-        }}
-      />
-      <Tabs.Screen
         name="bookings"
         options={{
           title: "Bookings",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.calendar} title="Bookings" />
+            <TabIcon focused={focused} icon={icons.bell} title="Bookings" />
           ),
         }}
       />
       <Tabs.Screen
-        name="messages"
+        name="listings"
         options={{
-          title: "Messages",
+          title: "Listings",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.chat} title="Messages" />
+            <TabIcon focused={focused} icon={icons.calendar} title="Listings" />
           ),
         }}
       />
@@ -84,10 +74,11 @@ const HostTabsLayout = () => {
           title: "Menu",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.person} title="Menu" />
+            <TabIcon focused={focused} icon={icons.chat} title="Menu" />
           ),
         }}
       />
+     
     </Tabs>
   );
 };
@@ -97,14 +88,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 5, // Gives extra space for the icon and label
   },
   icon: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
   },
   label: {
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center", // Center the label text
+    flexWrap: "wrap", // Allow text to wrap if it is too long
   },
 });
 

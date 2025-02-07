@@ -1,4 +1,5 @@
 // app/(guest)/guestTabs/_layout.tsx
+
 import React, { useEffect, useState } from "react";
 import { Tabs } from "expo-router";
 import { View, Text, Image, StyleSheet } from "react-native";
@@ -8,7 +9,7 @@ import { getCurrentUser, getRolesForUser } from "@/lib/appwrite";
 // A simple TabIcon component for the guest tabs
 interface TabIconProps {
   focused: boolean;
-  icon: any; // Replace with your icon type if available
+  icon: any; // Adjust with your icon type if needed
   title: string;
 }
 
@@ -19,21 +20,20 @@ const TabIcon: React.FC<TabIconProps> = ({ focused, icon, title }) => (
       style={[styles.icon, { tintColor: focused ? "#0061FF" : "#666876" }]}
       resizeMode="contain"
     />
-    <Text style={[styles.label, { color: focused ? "#0061FF" : "#666876" }]}>{title}</Text>
+    <Text style={[styles.label, { color: focused ? "#0061FF" : "#666876" }]}>
+      {title}
+    </Text>
   </View>
 );
 
 const GuestTabsLayout = () => {
-  // Change the state type to string[] because we only need the role strings.
   const [roles, setRoles] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchRoles = async () => {
       const user = await getCurrentUser();
       if (user) {
-        // getRolesForUser returns an array of Document objects that include a "role" property.
         const fetchedRoles = await getRolesForUser(user.$id);
-        // Map the documents to just their role strings.
         setRoles(fetchedRoles.map((doc) => doc.role));
       }
     };
@@ -51,7 +51,9 @@ const GuestTabsLayout = () => {
           width: "100%",
           borderTopColor: "#0061FF1A",
           borderTopWidth: 1,
-          minHeight: 70,
+          minHeight: 80, // Increased height for more space
+          paddingTop: 10,
+          paddingBottom: 10,
         },
       }}
     >
@@ -85,7 +87,6 @@ const GuestTabsLayout = () => {
           ),
         }}
       />
-      
     </Tabs>
   );
 };
@@ -95,14 +96,17 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingVertical: 5, // Gives extra space for the icon and label
   },
   icon: {
-    width: 24,
-    height: 24,
+    width: 28,
+    height: 28,
   },
   label: {
-    fontSize: 10,
-    marginTop: 2,
+    fontSize: 12,
+    marginTop: 4,
+    textAlign: "center", // Center the label text
+    flexWrap: "wrap", // Allow text to wrap if it is too long
   },
 });
 

@@ -6,6 +6,7 @@ export default {
     name: "shr_project",
     slug: "shr_project",
     version: "1.0.0",
+    scheme: "shr_project",
     orientation: "portrait",
     icon: "./assets/icons/dumbell.png",
     userInterfaceStyle: "light",

@@ -728,3 +728,39 @@ export async function getPropertiesByUser(userId: string): Promise<Models.Docume
     return [];
   }
 }
+export async function getAmenities(): Promise<{
+  $id: string;
+  name: string;
+  icon: string;
+}[]> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.amenitiesCollectionId
+    );
+    return response.documents.map((doc) => ({
+      $id: doc.$id,
+      name: doc.name as string,
+      icon: doc.icon as string,
+    }));
+  } catch (error: any) {
+    console.error("❌ Error fetching amenities:", error.message || error);
+    return [];
+  }
+}
+
+/**
+ * Fetch house rules list.
+ */
+export async function getHouseRules(): Promise<string[]> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.houseRulesCollectionId
+    );
+    return response.documents.map((doc) => doc.name as string);
+  } catch (error: any) {
+    console.error("❌ Error fetching house rules:", error.message || error);
+    return [];
+  }
+}

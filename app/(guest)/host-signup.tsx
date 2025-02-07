@@ -43,7 +43,7 @@ async function upsertHostApplication(data: {
   phoneNumber: string;
   hostDocumentId: string;
 }): Promise<void> {
-  const collectionId = "679ff60c0021cfd878f2"; // Replace with your actual host application collection ID if needed.
+  const collectionId = "67a6563a0032861f4b60";
   const now = new Date().toISOString();
   const docData = {
     userId: data.userId,
@@ -421,4 +421,3 @@ const modalStyles = StyleSheet.create({
   body: { fontSize: 16, lineHeight: 24, color: "#333" },
   buttonRow: { padding: 20 },
 });
-

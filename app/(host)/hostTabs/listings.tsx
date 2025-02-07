@@ -1,19 +1,23 @@
-// app/(host)/hostTabs/addProperty.tsx
-
 import React, { useState, useEffect } from "react";
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  ActivityIndicator 
+import {
+  SafeAreaView,
+  FlatList,
+  TouchableOpacity,
+  View,
+  Text,
+  Image,
+  ActivityIndicator,
+  StyleSheet,
 } from "react-native";
-import { useGlobalContext } from "../../global-provider";
 import { useRouter } from "expo-router";
-import { getPropertiesByUser } from "@/lib/appwrite"; // Ensure this function is implemented and exported
+import { getPropertiesByUser } from "@/lib/appwrite";
+import { useGlobalContext } from "../../global-provider";
 
-export default function AddListings() {
+// In case no media is provided, we fall back to a placeholder.
+// (You can remove this if you always expect a valid image URL.)
+const localPlaceholder = require("../../../assets/images/no-result.png");
+
+const Listings = () => {
   const { user } = useGlobalContext();
   const router = useRouter();
   const [properties, setProperties] = useState<any[]>([]);
@@ -23,9 +27,7 @@ export default function AddListings() {
     const fetchProperties = async () => {
       if (user && user.$id) {
         try {
-          console.log(`Fetching properties for user: ${user.$id}`);
           const result = await getPropertiesByUser(user.$id);
-          console.log("Fetched properties:", result);
           setProperties(result);
         } catch (error) {
           console.error("Error fetching properties:", error);
@@ -39,40 +41,66 @@ export default function AddListings() {
     fetchProperties();
   }, [user]);
 
-  const renderItem = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={styles.propertyItem} 
-      onPress={() => router.push(`/properties/${item.$id}`)}
+  const renderItem = ({ item }: { item: any }) => {
+    // Use the first media URL if available; otherwise fall back.
+    const imageUrl =
+      Array.isArray(item.media) && item.media.length > 0
+        ? { uri: item.media[0] }
+        : localPlaceholder;
+
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        onPress={() =>
+          // Update the route below to match your file structure.
+          // If your file is named "editProperty.tsx" inside app/(host)/properties/,
+          // then the route below should work.
+          router.push(`../propertyProfile/editProperty?id=${item.$id}`)
+        }
+      >
+        <Image source={imageUrl} style={styles.cardImage} />
+        <View style={styles.cardContent}>
+          <Text style={styles.cardTitle}>{item.name}</Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
+  // Option 1: Render the Add New Listing button as a footer on the FlatList.
+  const renderFooter = () => (
+    <TouchableOpacity
+      style={styles.addButton}
+      onPress={() =>
+        // Use the full route without the file extension.
+        router.push("../property-setup")
+      }
     >
-      <Text style={styles.propertyTitle}>{item.name}</Text>
-      <Text style={styles.propertyType}>{item.type}</Text>
+      <Text style={styles.addButtonText}>+ Add New Listing</Text>
     </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.heading}>Your Listed Properties</Text>
+    <SafeAreaView style={styles.container}>
+      <Text style={styles.heading}>Your Listings</Text>
       {loading ? (
         <ActivityIndicator size="large" color="#0061FF" />
-      ) : properties.length === 0 ? (
-        <Text style={styles.noPropertiesText}>No properties listed yet.</Text>
       ) : (
         <FlatList
           data={properties}
           keyExtractor={(item) => item.$id}
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
+          ListEmptyComponent={
+            <Text style={styles.noPropertiesText}>
+              No listings available.
+            </Text>
+          }
+          ListFooterComponent={renderFooter}
         />
       )}
-      <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => router.push("/(host)/hostTabs/property-setup")}
-      >
-        <Text style={styles.addButtonText}>+ List a New Property</Text>
-      </TouchableOpacity>
-    </View>
+    </SafeAreaView>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -90,26 +118,39 @@ const styles = StyleSheet.create({
   listContainer: {
     paddingBottom: 20,
   },
-  propertyItem: {
-    padding: 15,
-    backgroundColor: "#f9f9f9",
-    borderRadius: 8,
-    marginBottom: 10,
-  },
-  propertyTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  propertyType: {
-    fontSize: 14,
-    color: "#666",
-  },
   noPropertiesText: {
     textAlign: "center",
     color: "#666",
     marginTop: 20,
     fontSize: 16,
+  },
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f9f9f9",
+    padding: 10,
+    marginBottom: 10,
+    borderRadius: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 2,
+  },
+  cardImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 10,
+  },
+  cardContent: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#333",
   },
   addButton: {
     backgroundColor: "#0061FF",
@@ -124,3 +165,5 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+
+export default Listings;

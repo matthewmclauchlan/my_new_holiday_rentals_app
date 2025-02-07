@@ -38,7 +38,7 @@ export interface Property {
   address: string;
   bedrooms: number;
   bathrooms: number;
-  rating: number;
+  rating: "Noratings" | "1" | "2" | "3" | "4" | "5";
   area: number;
   amenities: string[]; // Typically an array of IDs or names from your amenities collection
   houseRulesId: string;
@@ -50,6 +50,10 @@ export interface Property {
   geolocation: string; // e.g. "lat,lng"
   mediaIds: string[]; // An array of file IDs from your media bucket
   status: "active" | "pending" | "sold" | "delisted";
+  catastro: string;
+  vutNumber: string;
+  approvalStatus: "pending" | "approved" | "rejected" | "reachout";
+  descisionDate: string;
 }
 
 // The structure for a host profile document in your host collection

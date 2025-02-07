@@ -1,6 +1,5 @@
 // app/(root)/(tabs)/index.tsx
-
-import React, { useState, useEffect, useCallback, memo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -14,7 +13,6 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
-
 import Search from "@/components/Search";
 import Filters from "@/components/Filters";
 import NoResults from "@/components/NoResults";
@@ -25,7 +23,6 @@ import { useGlobalContext } from "../../global-provider";
 import { getLatestProperties, getProperties } from "@/lib/appwrite";
 import { FilterOptions } from "@/lib/types";
 import { Models } from "react-native-appwrite";
-
 import { useDebounce } from "@/hooks/useDebounce";
 
 const Home = () => {
@@ -49,11 +46,11 @@ const Home = () => {
   // Debounce the filters to prevent rapid state updates
   const debouncedFilters = useDebounce(filters, 300);
 
-  // Fetch latest properties (featured)
+  // Fetch featured properties (e.g. properties available for booking)
   const { data: latestProperties, loading: latestPropertiesLoading } =
     useAppwrite<Models.Document[] | null, Record<string, string | number>>({
       fn: getLatestProperties,
-      params: {}, 
+      params: {},
       skip: false,
     });
 
@@ -62,17 +59,19 @@ const Home = () => {
     data: properties,
     refetch,
     loading,
-  } = useAppwrite<Models.Document[] | null, { filter: string; query: string; limit: number }>({
-    fn: getProperties,
-    params: {
-      filter: JSON.stringify(debouncedFilters),
-      query: params.query || "",
-      limit: 6,
-    },
-    skip: true, // We will trigger fetching manually
-  });
+  } = useAppwrite<Models.Document[] | null, { filter: string; query: string; limit: number }>(
+    {
+      fn: getProperties,
+      params: {
+        filter: JSON.stringify(debouncedFilters),
+        query: params.query || "",
+        limit: 6,
+      },
+      skip: true,
+    }
+  );
 
-  // Only refetch if debouncedFilters **actually change**
+  // Trigger a refetch when debounced filters change.
   useEffect(() => {
     if (debouncedFilters) {
       console.log("🔍 Refetching with Filters:", debouncedFilters);
@@ -84,88 +83,89 @@ const Home = () => {
     }
   }, [debouncedFilters, params.query]);
 
-  // Handler for when filters change
+  // Handler for when filters change.
   const handleFilterChange = useCallback((newFilters: FilterOptions) => {
     setFilters((prevFilters) => {
       if (JSON.stringify(prevFilters) !== JSON.stringify(newFilters)) {
-        return newFilters; // Only update if the filters actually changed
+        return newFilters;
       }
       return prevFilters;
     });
   }, []);
 
+  // When a property card is pressed, navigate to the guest property detail page.
+  // The URL always gets the query parameter `view=guest` so the detail page renders in read‑only mode.
   const handleCardPress = useCallback((id: string) => {
-    router.push(`/properties/${id}`);
-  }, []);
+    router.push(`/properties/${id}?view=guest`);
+  }, [router]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <FlatList
-  data={properties || []} // Ensure 'properties' is an array
-  renderItem={({ item }) => (
-    <Card item={item} onPress={() => handleCardPress(item.$id)} />
-  )}
-  keyExtractor={(item) => item.$id}
-  ListHeaderComponent={
-    <>
-      {/* User Greeting and Bell Icon */}
-      <View style={styles.userSection}>
-        <View style={styles.userInfo}>
-          <Image
-            source={{ uri: user?.avatar || "https://via.placeholder.com/100" }}
-            style={styles.userAvatar}
-          />
-          <View style={styles.userText}>
-            <Text style={styles.greetingText}>Good Morning</Text>
-            <Text style={styles.userNameText}>{user?.name || "Guest"}</Text>
-          </View>
-        </View>
-        <TouchableOpacity>
-          <Image source={icons.bell} style={styles.bellIcon} />
-        </TouchableOpacity>
-      </View>
-
-      {/* Search Bar */}
-      <Search />
-
-      {/* Featured Section */}
-      <View style={styles.featuredSection}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Featured</Text>
-          <TouchableOpacity>
-            <Text style={styles.seeAllText}>See all</Text>
-          </TouchableOpacity>
-        </View>
-
-        {latestPropertiesLoading ? (
-          <ActivityIndicator size="large" color="#70d7c7" style={styles.loader} />
-        ) : latestProperties && latestProperties.length > 0 ? (
-          <FlatList
-            data={latestProperties}
-            renderItem={({ item }) => (
-              <FeaturedCard item={item} onPress={() => handleCardPress(item.$id)} />
-            )}
-            keyExtractor={(item) => item.$id}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.featuredList}
-          />
-        ) : (
-          <NoResults message="No featured properties available." />
+        data={properties || []}
+        renderItem={({ item }) => (
+          <Card item={item} onPress={() => handleCardPress(item.$id)} />
         )}
-      </View>
+        keyExtractor={(item) => item.$id}
+        ListHeaderComponent={
+          <>
+            {/* User Greeting and Bell Icon */}
+            <View style={styles.userSection}>
+              <View style={styles.userInfo}>
+                <Image
+                  source={{ uri: user?.avatar || "https://via.placeholder.com/100" }}
+                  style={styles.userAvatar}
+                />
+                <View style={styles.userText}>
+                  <Text style={styles.greetingText}>Good Morning</Text>
+                  <Text style={styles.userNameText}>{user?.name || "Guest"}</Text>
+                </View>
+              </View>
+              <TouchableOpacity>
+                <Image source={icons.bell} style={styles.bellIcon} />
+              </TouchableOpacity>
+            </View>
 
-      {/* Filters */}
-      <Filters onFilterChange={handleFilterChange} />
-    </>
-  }
-  ListEmptyComponent={loading ? null : <NoResults message="No properties match your filters." />}
-  contentContainerStyle={styles.flatListContent}
-  numColumns={2}
-  columnWrapperStyle={styles.columnWrapper}
-  showsVerticalScrollIndicator={false}
-/>
+            {/* Search Bar */}
+            <Search />
 
+            {/* Featured Section */}
+            <View style={styles.featuredSection}>
+              <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Featured</Text>
+                <TouchableOpacity>
+                  <Text style={styles.seeAllText}>See all</Text>
+                </TouchableOpacity>
+              </View>
+
+              {latestPropertiesLoading ? (
+                <ActivityIndicator size="large" color="#70d7c7" style={styles.loader} />
+              ) : latestProperties && latestProperties.length > 0 ? (
+                <FlatList
+                  data={latestProperties}
+                  renderItem={({ item }) => (
+                    <FeaturedCard item={item} onPress={() => handleCardPress(item.$id)} />
+                  )}
+                  keyExtractor={(item) => item.$id}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.featuredList}
+                />
+              ) : (
+                <NoResults message="No featured properties available." />
+              )}
+            </View>
+
+            {/* Filters */}
+            <Filters onFilterChange={handleFilterChange} />
+          </>
+        }
+        ListEmptyComponent={loading ? null : <NoResults message="No properties match your filters." />}
+        contentContainerStyle={styles.flatListContent}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
+        showsVerticalScrollIndicator={false}
+      />
     </SafeAreaView>
   );
 };

@@ -1,4 +1,4 @@
-// components/Cards.tsx
+// components/hostCards.tsx
 
 import React from "react";
 import {
@@ -20,8 +20,8 @@ interface CardProps {
   onPress?: () => void;
 }
 
-/** 
- * FeaturedCard: For your featured section
+/**
+ * FeaturedCard: For featured sections (typically guest view)
  */
 export const FeaturedCard: React.FC<CardProps> = React.memo(({ item, onPress }) => {
   const imageUrl =
@@ -70,7 +70,7 @@ export const FeaturedCard: React.FC<CardProps> = React.memo(({ item, onPress }) 
 });
 
 /**
- * Card: Standard property card
+ * Card: Standard property card for guest view
  */
 export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
   const imageUrl =
@@ -96,7 +96,9 @@ export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
         source={imageUrl}
         style={styles.cardImage}
         defaultSource={localPlaceholder}
-        onError={() => console.log(`❌ Card image failed to load: ${item.media?.[0]}`)}
+        onError={() =>
+          console.log(`❌ Card image failed to load: ${item.media?.[0]}`)
+        }
       />
 
       <View style={styles.cardDetails}>
@@ -108,11 +110,64 @@ export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
         </Text>
         <View style={styles.cardPriceHeart}>
           <Text style={styles.cardPrice}>
-            {item.pricePerNight != null
-              ? `$${item.pricePerNight}/night`
-              : "N/A"}
+            {item.pricePerNight != null ? `$${item.pricePerNight}/night` : "N/A"}
           </Text>
-          <Image source={icons.heart} style={styles.heartIconCard} tintColor="#191D31" />
+          <Image
+            source={icons.heart}
+            style={styles.heartIconCard}
+            tintColor="#191D31"
+          />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+/**
+ * HostCard: Property card for host view with an edit icon overlay.
+ */
+export const HostCards: React.FC<CardProps> = React.memo(({ item, onPress }) => {
+  const imageUrl =
+    Array.isArray(item.media) && item.media.length > 0
+      ? { uri: item.media[0] }
+      : localPlaceholder;
+
+  return (
+    <TouchableOpacity
+      style={styles.hostCardsContainer}
+      onPress={onPress}
+      accessibilityLabel={`Edit property: ${item.name}`}
+      activeOpacity={0.8}
+    >
+      {item.rating != null && (
+        <View style={styles.ratingBadgeCard}>
+          <Image source={icons.star} style={styles.starIcon} />
+          <Text style={styles.ratingTextCard}>{item.rating.toFixed(1)}</Text>
+        </View>
+      )}
+
+      <Image
+        source={imageUrl}
+        style={styles.hostCardsImage}
+        defaultSource={localPlaceholder}
+        onError={() =>
+          console.log(`❌ HostCards image failed to load: ${item.media?.[0]}`)
+        }
+      />
+
+      <View style={styles.hostCardsDetails}>
+        <Text style={styles.hostCardsName} numberOfLines={1}>
+          {item.name}
+        </Text>
+        <Text style={styles.hostCardsAddress} numberOfLines={1}>
+          {item.address}
+        </Text>
+        <View style={styles.hostCardsPriceRow}>
+          <Text style={styles.hostCardsPrice}>
+            {item.pricePerNight != null ? `$${item.pricePerNight}/night` : "N/A"}
+          </Text>
+          {/* Edit icon overlay */}
+          <Image source={icons.edit} style={styles.editIcon} />
         </View>
       </View>
     </TouchableOpacity>
@@ -120,6 +175,7 @@ export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
 });
 
 const styles = StyleSheet.create({
+  // Featured card styles
   featuredCardContainer: {
     width: 150,
     height: 220,
@@ -193,6 +249,7 @@ const styles = StyleSheet.create({
     resizeMode: "contain",
   },
 
+  // Guest Card styles
   cardContainer: {
     flex: 1,
     marginVertical: 10,
@@ -262,6 +319,61 @@ const styles = StyleSheet.create({
     height: 18,
     resizeMode: "contain",
   },
+
+  // Host Card styles
+  hostCardsContainer: {
+    flex: 1,
+    marginVertical: 10,
+    marginHorizontal: 5,
+    borderRadius: 15,
+    backgroundColor: "#fff",
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 3,
+  },
+  hostCardsImage: {
+    width: "100%",
+    height: 150,
+    borderTopLeftRadius: 15,
+    borderTopRightRadius: 15,
+    resizeMode: "cover",
+  },
+  hostCardsDetails: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    right: 10,
+  },
+  hostCardsName: {
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#333",
+  },
+  hostCardsAddress: {
+    fontSize: 12,
+    color: "#666",
+    marginTop: 2,
+  },
+  hostCardsPriceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  hostCardsPrice: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: "#70d7c7",
+  },
+  editIcon: {
+    width: 18,
+    height: 18,
+    resizeMode: "contain",
+    tintColor: "#0061FF",
+  },
 });
 
-export default Card;
+export default HostCards;
+

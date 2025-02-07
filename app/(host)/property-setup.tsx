@@ -1,3 +1,5 @@
+// app/(host)/property-setup.tsx
+
 import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
@@ -16,14 +18,14 @@ import { createProperty, getAmenities, getHouseRules } from "@/lib/appwrite";
 import AmenitiesPicker from "@/components/AmenitiesPicker";
 import BottomSheetPicker from "@/components/BottomSheetPicker";
 import { useGlobalContext } from "../global-provider";
-import { Amenity } from "@/lib/types"; // Ensure your Amenity interface is defined here
+import { Amenity } from "@/lib/types"; // Ensure your Amenity interface is defined
 
-// Update wizard steps to include an additional details step.
+// Define the wizard steps. We add an "ADDITIONAL" step for catastro and vutNumber.
 enum WizardStep {
   BASIC_INFO = 0,
   LOCATION = 1,
   DETAILS = 2,
-  ADDITIONAL = 3,  // New step for catastro and vutNumber
+  ADDITIONAL = 3, // New step for additional info
   AMENITIES = 4,
   REVIEW = 5,
 }
@@ -46,6 +48,7 @@ const propertyTypes = [
   "Other",
 ];
 
+// Initial form values (all values are strings as entered by the user)
 const initialValues = {
   name: "",
   propertyType: "Apartment",
@@ -54,13 +57,15 @@ const initialValues = {
   bedrooms: "",
   bathrooms: "",
   area: "",
+  // New additional fields:
+  catastro: "",
+  vutNumber: "",
   selectedAmenities: [] as string[],
-  catastro: "",   // New field
-  vutNumber: "",  // New field
 };
 
+// Validation schemas for each step.
 const validationSchemas = [
-  // Step 0: Basic Info
+  // Step 1: Basic Info
   Yup.object().shape({
     name: Yup.string()
       .max(100, "Maximum 100 characters")
@@ -72,11 +77,11 @@ const validationSchemas = [
       .max(300, "Maximum 300 characters")
       .required("Property Description is required"),
   }),
-  // Step 1: Location
+  // Step 2: Location
   Yup.object().shape({
     address: Yup.string().required("Property Address is required"),
   }),
-  // Step 2: Details
+  // Step 3: Details
   Yup.object().shape({
     bedrooms: Yup.number()
       .typeError("Must be a number")
@@ -91,14 +96,14 @@ const validationSchemas = [
       .min(0, "At least 0")
       .required("Property size is required"),
   }),
-  // Step 3: Additional Details
+  // Step 4: Additional Info for Catastro and VUT Number
   Yup.object().shape({
     catastro: Yup.string().required("Catastro is required"),
-    vutNumber: Yup.string().required("Vut Number is required"),
+    vutNumber: Yup.string().required("VUT Number is required"),
   }),
-  // Step 4: Amenities – no extra required fields
+  // Step 5: Amenities – no extra required fields
   Yup.object().shape({}),
-  // Step 5: Review – no additional fields
+  // Step 6: Review – no additional validation
   Yup.object().shape({}),
 ];
 
@@ -109,6 +114,7 @@ export default function PropertySetupWizard() {
   const [houseRulesData, setHouseRulesData] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Fetch amenities and house rules on mount.
   useEffect(() => {
     (async () => {
       try {
@@ -138,6 +144,7 @@ export default function PropertySetupWizard() {
     setIsSubmitting(true);
     console.log("Submitting property with values:", values);
     try {
+      // Create the property using the provided values.
       const property = await createProperty({
         name: values.name,
         type: values.propertyType as any,
@@ -145,18 +152,18 @@ export default function PropertySetupWizard() {
         address: values.address,
         bedrooms: Number(values.bedrooms),
         bathrooms: Number(values.bathrooms),
-        rating: "Noratings",
+        rating: 0, // Default rating since it's not user-input.
         area: Number(values.area),
-        amenities: values.selectedAmenities,
-        houseRulesId: "",
+        amenities: values.selectedAmenities, // List of amenity IDs.
+        houseRulesId: "", // Not implemented in this example.
         isFeatured: false,
         pricePerNight: 120,
         userId: user.$id,
         geolocation: "latitude,longitude",
         mediaIds: [],
         status: "active",
-        catastro: values.catastro,    // New field
-        vutNumber: values.vutNumber,   // New field
+        catastro: values.catastro,
+        vutNumber: values.vutNumber,
       });
       console.log("Property successfully created:", property);
       Alert.alert("Success", "Property created successfully");
@@ -257,22 +264,22 @@ export default function PropertySetupWizard() {
       case WizardStep.ADDITIONAL:
         return (
           <View>
-            <Text style={styles.stepTitle}>Additional Details</Text>
+            <Text style={styles.stepTitle}>Additional Information</Text>
             <Text style={styles.label}>Catastro</Text>
             <TextInput
               style={styles.input}
               value={formikProps.values.catastro}
               onChangeText={formikProps.handleChange("catastro")}
               onBlur={formikProps.handleBlur("catastro")}
-              placeholder="Enter cadastral information"
+              placeholder="Enter Catastro information"
             />
-            <Text style={styles.label}>Vut Number</Text>
+            <Text style={styles.label}>VUT Number</Text>
             <TextInput
               style={styles.input}
               value={formikProps.values.vutNumber}
               onChangeText={formikProps.handleChange("vutNumber")}
               onBlur={formikProps.handleBlur("vutNumber")}
-              placeholder="Enter Vut Number"
+              placeholder="Enter VUT Number"
             />
           </View>
         );
@@ -290,10 +297,7 @@ export default function PropertySetupWizard() {
                     current.filter((item: string) => item !== id)
                   );
                 } else {
-                  formikProps.setFieldValue("selectedAmenities", [
-                    ...current,
-                    id,
-                  ]);
+                  formikProps.setFieldValue("selectedAmenities", [...current, id]);
                 }
               }}
             />
@@ -311,7 +315,7 @@ export default function PropertySetupWizard() {
             <Text style={styles.info}>Bathrooms: {formikProps.values.bathrooms}</Text>
             <Text style={styles.info}>Size (sqm): {formikProps.values.area}</Text>
             <Text style={styles.info}>Catastro: {formikProps.values.catastro}</Text>
-            <Text style={styles.info}>Vut Number: {formikProps.values.vutNumber}</Text>
+            <Text style={styles.info}>VUT Number: {formikProps.values.vutNumber}</Text>
             <Text style={styles.info}>
               Amenities:{" "}
               {formikProps.values.selectedAmenities.length
@@ -325,6 +329,8 @@ export default function PropertySetupWizard() {
     }
   };
 
+  const isFinalStep = step === WizardStep.REVIEW;
+
   return (
     <Formik
       initialValues={initialValues}
@@ -337,34 +343,13 @@ export default function PropertySetupWizard() {
             {renderStepContent(formikProps)}
             <View style={styles.navRow}>
               {step > WizardStep.BASIC_INFO && (
-                <Button
-                  title="Back"
-                  onPress={() => setStep(step - 1)}
-                  color="#999"
-                  disabled={isSubmitting}
-                />
+                <Button title="Back" onPress={() => setStep(step - 1)} color="#999" />
               )}
-              {step < WizardStep.REVIEW ? (
-                <Button
-                  title="Next"
-                  onPress={() => {
-                    formikProps.validateForm().then((errors: any) => {
-                      if (Object.keys(errors).length === 0) {
-                        setStep(step + 1);
-                      } else {
-                        Alert.alert(
-                          "Validation Error",
-                          "Please fix the errors before proceeding."
-                        );
-                      }
-                    });
-                  }}
-                  color="#70d7c7"
-                  disabled={isSubmitting}
-                />
+              {!isFinalStep ? (
+                <Button title="Next" onPress={() => setStep(step + 1)} color="#70d7c7" />
               ) : (
                 <Button
-                  title={isSubmitting ? "Submitting..." : "Submit"}
+                  title="Submit"
                   onPress={() => formikProps.handleSubmit()}
                   color="#70d7c7"
                   disabled={isSubmitting}

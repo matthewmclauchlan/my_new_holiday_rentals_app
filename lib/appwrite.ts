@@ -1,4 +1,3 @@
-// lib/appwrite.ts
 import {
   Client,
   Account,
@@ -9,6 +8,7 @@ import {
   Query,
   Storage,
   Models,
+  Permission,
 } from "react-native-appwrite";
 import * as Linking from "expo-linking";
 import { openAuthSessionAsync } from "expo-web-browser";
@@ -39,6 +39,7 @@ const {
   appwriteHouseRulesCollectionId = "",
   appwriteAmenitiesCollectionId = "",
   appwriteHostCollectionId = "",
+  // We no longer use a separate host application collection ID.
   glideApiKey = "",
   glideAppId = "",
   webhookSecret = "",
@@ -64,7 +65,7 @@ export const config = {
   mediaCollectionId: appwriteMediaCollectionId,
   houseRulesCollectionId: appwriteHouseRulesCollectionId,
   amenitiesCollectionId: appwriteAmenitiesCollectionId,
-  hostCollectionId: appwriteHostCollectionId,
+  hostCollectionId: appwriteHostCollectionId, // Use only this host collection.
 };
 
 export const glideConfig = {
@@ -83,7 +84,9 @@ export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
 
-// Utility: ensures hostCollectionId is defined
+/**
+ * Utility: ensures hostCollectionId is defined.
+ */
 function getHostCollectionIdOrThrow(): string {
   const hostId = config.hostCollectionId;
   if (!hostId) {
@@ -94,7 +97,6 @@ function getHostCollectionIdOrThrow(): string {
 
 /**
  * Assign the "owner" role to a user.
- * This function creates a new document in the roles collection.
  */
 export async function addOwnerRole(userId: string): Promise<Models.Document | null> {
   try {
@@ -105,7 +107,7 @@ export async function addOwnerRole(userId: string): Promise<Models.Document | nu
       config.rolesCollectionId,
       ID.unique(),
       {
-        userId, // Ensure this is a valid string.
+        userId,
         role: "owner",
         createdAt: currentTime,
         updatedAt: currentTime,
@@ -126,18 +128,14 @@ export async function login() {
     const redirectUri = Linking.createURL("/auth");
     const response = await account.createOAuth2Token(OAuthProvider.Google, redirectUri);
     if (!response) throw new Error("Create OAuth2 token failed");
-
     const browserResult = await openAuthSessionAsync(response.toString(), redirectUri);
     if (browserResult.type !== "success") throw new Error("Login cancelled");
-
     const url = new URL(browserResult.url);
     const secret = url.searchParams.get("secret")?.toString();
     const userId = url.searchParams.get("userId")?.toString();
     if (!secret || !userId) throw new Error("Missing authentication parameters");
-
     const session = await account.createSession(userId, secret);
     if (!session) throw new Error("Session creation failed");
-
     return true;
   } catch (error) {
     console.error("❌ Login Error:", error);
@@ -156,8 +154,6 @@ export async function logout() {
     return false;
   }
 }
-
-
 
 /**
  * Fetch roles for a user.
@@ -183,7 +179,6 @@ export async function getCurrentUser() {
   try {
     const sessionList = await account.listSessions();
     if (!sessionList.sessions.length) return null;
-
     const result = await account.get();
     if (result.$id) {
       const initials = avatar.getInitials(result.name).toString();
@@ -231,18 +226,15 @@ export async function getPropertyById(id: string): Promise<Models.Document | nul
       config.propertiesCollectionId,
       id
     );
-
     const mediaFiles = await databases.listDocuments<Models.Document & { fileId: string }>(
       config.databaseId,
       config.mediaCollectionId,
       [Query.equal("propertyId", id)]
     );
-
     const mediaUrls = mediaFiles.documents.map(
       (media) =>
         `https://cloud.appwrite.io/v1/storage/buckets/${config.bucketId}/files/${media.fileId}/preview?project=${config.projectId}`
     );
-
     return { ...property, media: mediaUrls };
   } catch (error) {
     console.error("❌ Error fetching property:", error);
@@ -265,15 +257,12 @@ export async function getProperties({
   try {
     const filterOptions: FilterOptions = JSON.parse(filter);
     const queries: any[] = [Query.orderDesc("$createdAt"), Query.limit(limit)];
-
     if (filterOptions.category && filterOptions.category !== "All") {
       queries.push(Query.equal("type", filterOptions.category));
     }
-
     if (filterOptions.location && filterOptions.location.trim() !== "") {
       queries.push(Query.search("location", filterOptions.location));
     }
-
     if (
       filterOptions.priceMin !== undefined &&
       filterOptions.priceMax !== undefined &&
@@ -281,51 +270,39 @@ export async function getProperties({
     ) {
       queries.push(Query.between("pricePerNight", filterOptions.priceMin, filterOptions.priceMax));
     }
-
     if (filterOptions.bedrooms && filterOptions.bedrooms > 0) {
       queries.push(Query.greaterThanEqual("bedrooms", filterOptions.bedrooms));
     }
-
     if (filterOptions.bathrooms && filterOptions.bathrooms > 0) {
       queries.push(Query.greaterThanEqual("bathrooms", filterOptions.bathrooms));
     }
-
     if (filterOptions.amenities && filterOptions.amenities.length > 0) {
       filterOptions.amenities.forEach((amenity: string) => {
         queries.push(Query.equal("amenities", amenity));
       });
     }
-
     if (filterOptions.guestCount && filterOptions.guestCount > 1) {
       queries.push(Query.greaterThanEqual("maxGuests", filterOptions.guestCount));
     }
-
     if (filterOptions.startDate) {
       queries.push(Query.greaterThanEqual("availableFrom", filterOptions.startDate));
     }
-
     if (filterOptions.endDate) {
       queries.push(Query.lessThanEqual("availableTo", filterOptions.endDate));
     }
-
     if (query && query.trim() !== "") {
       queries.push(Query.search("name", query));
     }
-
     const propertiesResponse = await databases.listDocuments<Models.Document>(
       config.databaseId,
       config.propertiesCollectionId,
       queries
     );
-
     if (propertiesResponse.documents.length === 0) return [];
-
     const propertyIds = propertiesResponse.documents.map((prop) => prop.$id);
-
     const mediaResponse = await databases.listDocuments<
       Models.Document & { propertyId: { $id: string }; fileId: string }
     >(config.databaseId, config.mediaCollectionId, [Query.equal("propertyId", propertyIds)]);
-
     const propertyMediaMap: Record<string, string[]> = {};
     mediaResponse.documents.forEach((media) => {
       const propertyId = media.propertyId.$id;
@@ -333,7 +310,6 @@ export async function getProperties({
       if (!propertyMediaMap[propertyId]) propertyMediaMap[propertyId] = [];
       propertyMediaMap[propertyId].push(imageUrl);
     });
-
     return propertiesResponse.documents.map((property) => ({
       ...property,
       media: propertyMediaMap[property.$id] || [],
@@ -354,7 +330,6 @@ export async function getLatestProperties(): Promise<Models.Document[]> {
       config.propertiesCollectionId,
       [Query.orderDesc("$createdAt"), Query.limit(5)]
     );
-
     return response.documents.map((property) => ({
       ...property,
       media: (property.mediaIds || []).map(
@@ -394,13 +369,11 @@ export async function createBooking(bookingData: {
       "updatedAt",
       "status",
     ];
-
     for (const field of requiredFields) {
       if (!bookingData[field as keyof typeof bookingData]) {
         throw new Error(`Missing required field: ${field}`);
       }
     }
-
     const response = await databases.createDocument(
       config.databaseId,
       config.bookingsCollectionId,
@@ -451,20 +424,29 @@ export async function createProperty(data: {
   geolocation: string;
   mediaIds: string[];
   status: "active" | "pending" | "sold" | "delisted";
+  catastro: string;
+  vutNumber: string;
 }): Promise<Models.Document> {
+  const currentTime = new Date().toISOString();
+  let response: Models.Document;
   try {
-    const currentTime = new Date().toISOString();
-    const response = await databases.createDocument<Models.Document>(
+    // Let Appwrite generate its own ID by passing "unique()"
+    response = await databases.createDocument<Models.Document>(
       config.databaseId,
       config.propertiesCollectionId,
-      ID.unique(),
+      "unique()",
       {
         ...data,
         createdAt: currentTime,
         updatedAt: currentTime,
       }
     );
-    // After creating the property in Appwrite, send the data to Glide for moderation.
+  } catch (error: any) {
+    console.error("❌ Error creating property:", error.message || error);
+    throw error;
+  }
+  console.log("Property created with ID:", response.$id);
+  try {
     await sendPropertyListingToGlide({
       propertyId: response.$id,
       userId: data.userId,
@@ -483,78 +465,80 @@ export async function createProperty(data: {
       status: data.status,
       submissionDate: currentTime,
       moderationComments: "",
+      vutNumber: data.vutNumber,
+      catastro: data.catastro,
+      approvalStatus: "pending", // or as needed
+      decisionDate: "",
     });
-    return response;
-  } catch (error: any) {
-    console.error("❌ Error creating property:", error.message || error);
-    throw error;
+  } catch (glideError: any) {
+    console.error("❌ Error sending property listing to Glide:", glideError.message || glideError);
   }
+  return response;
 }
 
+/**
+ * Upsert host profile.
+ *
+ * This function creates a new host profile document.
+ * We are using the host collection (config.hostCollectionId) since we do not have a separate host application collection.
+ * After creating the host profile, we check if the user already has the owner role; if so, we send the Glide payload with approvalStatus "approved", otherwise "pending".
+ */
 export async function upsertHostProfile(data: {
   userId: string;
   fullName: string;
   phoneNumber: string;
-  hostDocumentId?: string;
+  hostDocumentId: string;
   termsAccepted?: boolean;
-}): Promise<Models.Document | null> {
+}): Promise<void> {
+  const collectionId = config.hostCollectionId;
+  if (!collectionId) {
+    throw new Error("Missing host collection ID in configuration.");
+  }
+  const now = new Date().toISOString();
+  const docData: any = {
+    userId: data.userId,
+    fullName: data.fullName,
+    phoneNumber: data.phoneNumber,
+    approvalStatus: "pending",
+    createdAt: now,
+    updatedAt: now,
+    hostDocumentId: data.hostDocumentId,
+  };
+  if (data.termsAccepted !== undefined) {
+    docData.termsAccepted = data.termsAccepted;
+  }
+  if (!docData.hostDocumentId) {
+    throw new Error("Missing required attribute 'hostDocumentId'");
+  }
   try {
-    // Check for required fields
-    if (!data.userId || !data.fullName || !data.phoneNumber) {
-      throw new Error("Missing required host signup fields");
-    }
-
-    const hostCollId = getHostCollectionIdOrThrow();
-    const currentTime = new Date().toISOString();
-
-    // Check if a host profile already exists for the given userId.
-    const existingProfiles = await databases.listDocuments<Models.Document>(
+    // Let Appwrite auto-generate the document ID by passing "unique()"
+    await databases.createDocument(
       config.databaseId,
-      hostCollId,
-      [Query.equal("userId", data.userId)]
+      collectionId,
+      "unique()",
+      docData,
+      [
+        Permission.read(`user:${data.userId}`),
+        Permission.update(`user:${data.userId}`),
+        Permission.delete(`user:${data.userId}`),
+      ]
     );
-
-    let response: Models.Document;
-    if (existingProfiles.documents.length > 0) {
-      // Update the existing host profile.
-      const existingProfile = existingProfiles.documents[0];
-      response = await databases.updateDocument<Models.Document>(
-        config.databaseId,
-        hostCollId,
-        existingProfile.$id,
-        { ...data, updatedAt: currentTime }
-      );
-    } else {
-      // Create a new host profile with approvalStatus set to "pending".
-      response = await databases.createDocument<Models.Document>(
-        config.databaseId,
-        hostCollId,
-        ID.unique(),
-        {
-          ...data,
-          approvalStatus: "pending", // New profile marked as pending
-          createdAt: currentTime,
-          updatedAt: currentTime,
-        }
-      );
-    }
-
-    // Send host application data to Glide.
-    // This payload also uses "pending" as the initial status.
+    // Now, check if the user has the owner role.
+    const roles = await getRolesForUser(data.userId);
+    const isOwner = roles.some((roleDoc: any) => roleDoc.role === "owner");
+    const payloadApprovalStatus = isOwner ? "approved" : "pending";
     await sendHostApplicationToGlide({
       userId: data.userId,
       fullName: data.fullName,
       phoneNumber: data.phoneNumber,
-      hostDocumentId: data.hostDocumentId || "",
-      submissionDate: currentTime,
-      approvalStatus: "pending", // Sends "pending" to Glide
+      hostDocumentId: data.hostDocumentId,
+      submissionDate: now,
+      approvalStatus: payloadApprovalStatus,
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
     });
-    
-    return response;
   } catch (error: any) {
-    console.error("❌ Error upserting host profile:", error.message || error);
+    console.error("Error creating/updating host profile document:", error.message || error);
     throw error;
   }
 }
@@ -575,7 +559,7 @@ export async function sendHostApplicationToGlide(data: {
 }): Promise<void> {
   try {
     const payload = {
-      appID: glideAppId, // Should be defined in your configuration
+      appID: glideAppId,
       mutations: [
         {
           kind: "add-row-to-table",
@@ -593,17 +577,15 @@ export async function sendHostApplicationToGlide(data: {
         },
       ],
     };
-
     console.log("Sending host application to Glide:", payload);
     const response = await fetch("https://api.glideapp.io/api/function/mutateTables", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${glideApiKey}`, // Should be defined in your configuration
+        "Authorization": `Bearer ${glideApiKey}`,
       },
       body: JSON.stringify(payload),
     });
-
     if (!response.ok) {
       const errText = await response.text();
       throw new Error(`Glide API error: ${errText}`);
@@ -613,7 +595,6 @@ export async function sendHostApplicationToGlide(data: {
     console.error("❌ Error sending host application to Glide:", error.message || error);
   }
 }
-
 
 /**
  * Send property listing data to Glide for moderation.
@@ -636,6 +617,10 @@ export async function sendPropertyListingToGlide(data: {
   status: string;
   submissionDate: string;
   moderationComments: string;
+  vutNumber: string;
+  catastro: string;
+  approvalStatus: string;
+  decisionDate: string;
 }): Promise<void> {
   try {
     const payload = {
@@ -662,11 +647,14 @@ export async function sendPropertyListingToGlide(data: {
             "a7QEz": data.status,
             "ns9Fx": data.submissionDate,
             "z9i3C": data.moderationComments,
+            "89Fj3": data.approvalStatus,
+            "hN28F": data.decisionDate,
+            "wskyU": data.catastro,
+            "avIOt": data.vutNumber,
           },
         },
       ],
     };
-
     console.log("Sending property listing to Glide:", payload);
     const response = await fetch("https://api.glideapp.io/api/function/mutateTables", {
       method: "POST",
@@ -676,7 +664,6 @@ export async function sendPropertyListingToGlide(data: {
       },
       body: JSON.stringify(payload),
     });
-
     if (!response.ok) {
       const errText = await response.text();
       throw new Error(`Glide API error: ${errText}`);
@@ -728,6 +715,10 @@ export async function getPropertiesByUser(userId: string): Promise<Models.Docume
     return [];
   }
 }
+
+/**
+ * Fetch amenities list.
+ */
 export async function getAmenities(): Promise<{
   $id: string;
   name: string;

@@ -93,10 +93,9 @@ const GuestTabsLayout = () => {
 
 const styles = StyleSheet.create({
   tabIconContainer: {
-    flex: 1,
+    flex: 5,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 5, // Gives extra space for the icon and label
   },
   icon: {
     width: 28,
@@ -104,7 +103,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 5,
     textAlign: "center", // Center the label text
     flexWrap: "wrap", // Allow text to wrap if it is too long
   },

@@ -49,7 +49,9 @@ export const FeaturedCard: React.FC<CardProps> = React.memo(({ item, onPress }) 
       {item.rating != null && (
         <View style={styles.ratingBadge}>
           <Image source={icons.star} style={styles.starIcon} />
-          <Text style={styles.ratingText}>{item.rating.toFixed(1)}</Text>
+          <Text style={styles.ratingText}>
+            {typeof item.rating === "number" ? item.rating.toFixed(1) : "N/A"}
+          </Text>
         </View>
       )}
 
@@ -88,7 +90,9 @@ export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
       {item.rating != null && (
         <View style={styles.ratingBadgeCard}>
           <Image source={icons.star} style={styles.starIcon} />
-          <Text style={styles.ratingTextCard}>{item.rating.toFixed(1)}</Text>
+          <Text style={styles.ratingTextCard}>
+            {typeof item.rating === "number" ? item.rating.toFixed(1) : "N/A"}
+          </Text>
         </View>
       )}
 
@@ -96,7 +100,9 @@ export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
         source={imageUrl}
         style={styles.cardImage}
         defaultSource={localPlaceholder}
-        onError={() => console.log(`❌ Card image failed to load: ${item.media?.[0]}`)}
+        onError={() =>
+          console.log(`❌ Card image failed to load: ${item.media?.[0]}`)
+        }
       />
 
       <View style={styles.cardDetails}>
@@ -108,9 +114,7 @@ export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
         </Text>
         <View style={styles.cardPriceHeart}>
           <Text style={styles.cardPrice}>
-            {item.pricePerNight != null
-              ? `$${item.pricePerNight}/night`
-              : "N/A"}
+            {item.pricePerNight != null ? `$${item.pricePerNight}/night` : "N/A"}
           </Text>
           <Image source={icons.heart} style={styles.heartIconCard} tintColor="#191D31" />
         </View>

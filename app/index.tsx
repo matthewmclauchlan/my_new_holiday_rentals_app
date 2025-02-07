@@ -5,15 +5,6 @@ import { ID } from "react-native-appwrite";
 import { Redirect } from "expo-router";
 import { useGlobalContext } from "./global-provider";
 
-// Temporary test: generate and log IDs.
-if (__DEV__) {  // __DEV__ is true in development mode in React Native.
-  const testIDs: string[] = [];
-  for (let i = 0; i < 10; i++) {
-    testIDs.push(ID.unique());
-  }
-  console.log("Test Generated IDs:", testIDs);
-}
-
 export default function Main() {
   const { user, loading } = useGlobalContext();
 

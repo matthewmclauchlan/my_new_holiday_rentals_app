@@ -1,9 +1,11 @@
+// app/_layout.tsx (or app/index.tsx, wherever your root layout is defined)
 import React, { useEffect } from "react";
+import { StyleSheet, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
-import { StyleSheet } from "react-native";
 import { Stack } from "expo-router";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import "./global.css";
 import GlobalProvider from "./global-provider";
@@ -30,11 +32,13 @@ export default function RootLayout() {
 
   return (
     <GlobalProvider>
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.container}>
-          <Stack screenOptions={{ headerShown: false }} />
-        </SafeAreaView>
-      </SafeAreaProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <SafeAreaProvider>
+          <SafeAreaView style={styles.container}>
+            <Stack screenOptions={{ headerShown: false }} />
+          </SafeAreaView>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </GlobalProvider>
   );
 }

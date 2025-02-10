@@ -1,3 +1,5 @@
+// lib/appwrite.ts
+
 import {
   Client,
   Account,
@@ -39,7 +41,7 @@ const {
   appwriteHouseRulesCollectionId = "",
   appwriteAmenitiesCollectionId = "",
   appwriteHostCollectionId = "",
-  // We no longer use a separate host application collection ID.
+  appwritePriceAdjustmentsId = "",
   glideApiKey = "",
   glideAppId = "",
   webhookSecret = "",
@@ -66,6 +68,7 @@ export const config = {
   houseRulesCollectionId: appwriteHouseRulesCollectionId,
   amenitiesCollectionId: appwriteAmenitiesCollectionId,
   hostCollectionId: appwriteHostCollectionId, // Use only this host collection.
+  priceAdjustmentsId: appwritePriceAdjustmentsId,
 };
 
 export const glideConfig = {
@@ -467,7 +470,7 @@ export async function createProperty(data: {
       moderationComments: "",
       vutNumber: data.vutNumber,
       catastro: data.catastro,
-      approvalStatus: "pending", // or as needed
+      approvalStatus: "pending",
       decisionDate: "",
     });
   } catch (glideError: any) {
@@ -478,10 +481,6 @@ export async function createProperty(data: {
 
 /**
  * Upsert host profile.
- *
- * This function creates a new host profile document.
- * We are using the host collection (config.hostCollectionId) since we do not have a separate host application collection.
- * After creating the host profile, we check if the user already has the owner role; if so, we send the Glide payload with approvalStatus "approved", otherwise "pending".
  */
 export async function upsertHostProfile(data: {
   userId: string;
@@ -492,7 +491,7 @@ export async function upsertHostProfile(data: {
 }): Promise<void> {
   const collectionId = config.hostCollectionId;
   if (!collectionId) {
-    throw new Error("Missing host collection ID in configuration.");
+    throw new Error("Missing host collection ID (EXPO_PUBLIC_APPWRITE_HOST_COLLECTION_ID).");
   }
   const now = new Date().toISOString();
   const docData: any = {
@@ -511,7 +510,6 @@ export async function upsertHostProfile(data: {
     throw new Error("Missing required attribute 'hostDocumentId'");
   }
   try {
-    // Let Appwrite auto-generate the document ID by passing "unique()"
     await databases.createDocument(
       config.databaseId,
       collectionId,
@@ -523,7 +521,6 @@ export async function upsertHostProfile(data: {
         Permission.delete(`user:${data.userId}`),
       ]
     );
-    // Now, check if the user has the owner role.
     const roles = await getRolesForUser(data.userId);
     const isOwner = roles.some((roleDoc: any) => roleDoc.role === "owner");
     const payloadApprovalStatus = isOwner ? "approved" : "pending";
@@ -544,8 +541,7 @@ export async function upsertHostProfile(data: {
 }
 
 /**
- * Send Host Application to Glide:
- * This function sends a payload to Glide for moderation.
+ * Send Host Application to Glide.
  */
 export async function sendHostApplicationToGlide(data: {
   userId: string;
@@ -755,3 +751,147 @@ export async function getHouseRules(): Promise<string[]> {
     return [];
   }
 }
+
+/**
+ * Define interfaces for Price Rules if not already defined.
+ */
+export interface PriceRules extends Models.Document {
+  propertyId: string;
+  basePricePerNight: number;
+  basePricePerNightWeekend: number;
+  weeklyDiscount?: number;
+  monthlyDiscount?: number;
+  cleaningFee?: number;
+  petFee?: number;
+}
+
+/**
+ * Interface for updating price rules.
+ */
+export interface PriceRulesUpdate {
+  basePricePerNight: number;
+  basePricePerNightWeekend: number;
+  weeklyDiscount?: number;
+  monthlyDiscount?: number;
+  cleaningFee?: number;
+  petFee?: number;
+  // New fields:
+  overrides?: string[]; // Each element will be a JSON string representing { date, price }
+  blockedDates?: string[];
+}
+
+/**
+ * Fetch pricing rules for a given property from the priceRules collection.
+ */
+export async function getPriceRulesForProperty(propertyId: string): Promise<PriceRules | null> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.priceRulesCollectionId,
+      [Query.equal("propertyId", propertyId)]
+    );
+    if (response.documents.length > 0) {
+      return response.documents[0] as PriceRules;
+    }
+    return null;
+  } catch (error) {
+    console.error("❌ Error fetching price rules:", error);
+    return null;
+  }
+}
+
+/**
+ * Update or create pricing rules for a given property in the priceRules collection.
+ */
+export async function updatePriceRulesForProperty(
+  propertyId: string,
+  data: PriceRulesUpdate
+): Promise<PriceRules> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.priceRulesCollectionId,
+      [Query.equal("propertyId", propertyId)]
+    );
+    if (response.documents.length > 0) {
+      const existingDoc = response.documents[0];
+      const updatedDoc = await databases.updateDocument(
+        config.databaseId,
+        config.priceRulesCollectionId,
+        existingDoc.$id,
+        { propertyId, ...data }
+      );
+      return updatedDoc as PriceRules;
+    } else {
+      const newDoc = await databases.createDocument(
+        config.databaseId,
+        config.priceRulesCollectionId,
+        ID.unique(),
+        { propertyId, ...data }
+      );
+      return newDoc as PriceRules;
+    }
+  } catch (error) {
+    console.error("❌ Error updating price rules:", error);
+    throw error;
+  }
+}
+
+/**
+ * New Function: Update (or create) price adjustments for a property in a separate collection.
+ */
+export async function updatePriceAdjustmentsForProperty(
+  propertyId: string,
+  adjustments: { date: string; overridePrice: number; blocked: boolean }[]
+): Promise<void> {
+  try {
+    // For each adjustment, check if an adjustment for the property/date exists.
+    for (const adj of adjustments) {
+      const response = await databases.listDocuments(
+        config.databaseId,
+        config.priceAdjustmentsId,
+        [Query.equal("propertyId", propertyId), Query.equal("date", adj.date)]
+      );
+      if (response.documents.length > 0) {
+        // Update the existing document.
+        await databases.updateDocument(
+          config.databaseId,
+          config.priceAdjustmentsId,
+          response.documents[0].$id,
+          { propertyId, date: adj.date, overridePrice: adj.overridePrice, blocked: adj.blocked }
+        );
+      } else {
+        // Create a new adjustment document.
+        await databases.createDocument(
+          config.databaseId,
+          config.priceAdjustmentsId,
+          ID.unique(),
+          { propertyId, date: adj.date, overridePrice: adj.overridePrice, blocked: adj.blocked }
+        );
+      }
+    }
+    console.log("Price adjustments updated for property", propertyId);
+  } catch (error) {
+    console.error("Error updating price adjustments:", error);
+    throw error;
+  }
+}
+
+/**
+ * New Function: Get price adjustments for a property.
+ */
+export async function getPriceAdjustmentsForProperty(propertyId: string): Promise<any[]> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.priceAdjustmentsId,
+      [Query.equal("propertyId", propertyId)]
+    );
+    return response.documents;
+  } catch (error) {
+    console.error("Error fetching price adjustments:", error);
+    return [];
+  }
+}
+export { ID, Query };
+

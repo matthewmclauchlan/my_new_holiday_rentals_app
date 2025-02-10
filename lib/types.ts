@@ -100,3 +100,9 @@ export interface AmenitySection {
   title: string;
   data: Amenity[];
 }
+
+export interface AmenitySection {
+  title: string;
+  data: Amenity[];
+}
+

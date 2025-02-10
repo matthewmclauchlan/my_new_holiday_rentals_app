@@ -66,7 +66,9 @@ const HostDashboard = () => {
           <View style={styles.header}>
             <View style={styles.userInfo}>
               <Image
-                source={{ uri: user?.avatar || "https://via.placeholder.com/100" }}
+                source={{
+                  uri: user?.avatar || "https://via.placeholder.com/100",
+                }}
                 style={styles.avatar}
               />
               <View style={styles.userText}>
@@ -101,59 +103,84 @@ const HostDashboard = () => {
 
           {/* Next Stay Card */}
           {properties.length > 0 ? (
-            <TouchableOpacity onPress={handleNextStayPress}>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Next Stay</Text>
-                <Text style={styles.cardText}>
-                  Guest: {properties[0]?.guestName || "N/A"}
-                </Text>
-                <Text style={styles.cardText}>
-                  Property: {properties[0]?.name || properties[0]?.propertyName || "N/A"}
-                </Text>
-                <Text style={styles.cardText}>
-                  Check-in: {properties[0]?.checkIn || "N/A"}
-                </Text>
-                <Text style={styles.cardText}>
-                  Check-out: {properties[0]?.checkOut || "N/A"}
-                </Text>
-                <View style={styles.cardFooter}>
-                  <TouchableOpacity
-                    style={styles.outlinedButton}
-                    onPress={() => router.push("/(host)/hostTabs/messages")}
-                  >
-                    <Text style={styles.outlinedButtonText}>Message Guest</Text>
-                  </TouchableOpacity>
-                  <View style={styles.statusIndicator}>
-                    <Text style={styles.statusText}>
-                      {properties[0]?.checkInStatus === "Late" ? "⚠️ Late" : "✔️ On Time"}
-                    </Text>
+            properties[0]?.guestName ? (
+              // Booking details card if a booking exists
+              <TouchableOpacity onPress={handleNextStayPress}>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Next Stay</Text>
+                  <Text style={styles.cardText}>
+                    Guest: {properties[0]?.guestName}
+                  </Text>
+                  <Text style={styles.cardText}>
+                    Property:{" "}
+                    {properties[0]?.name || properties[0]?.propertyName || "N/A"}
+                  </Text>
+                  <Text style={styles.cardText}>
+                    Check-in: {properties[0]?.checkIn || "N/A"}
+                  </Text>
+                  <Text style={styles.cardText}>
+                    Check-out: {properties[0]?.checkOut || "N/A"}
+                  </Text>
+                  <View style={styles.cardFooter}>
+                    <TouchableOpacity
+                      style={styles.outlinedButton}
+                      onPress={() => router.push("/(host)/messages")}
+                    >
+                      <Text style={styles.outlinedButtonText}>
+                        Message Guest
+                      </Text>
+                    </TouchableOpacity>
+                    <View style={styles.statusIndicator}>
+                      <Text style={styles.statusText}>
+                        {properties[0]?.checkInStatus === "Late"
+                          ? "⚠️ Late"
+                          : "✔️ On Time"}
+                      </Text>
+                    </View>
                   </View>
                 </View>
+              </TouchableOpacity>
+            ) : (
+              // Placeholder card if there are no bookings for the property
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Next Stay</Text>
+                <Image
+                  source={{
+                    uri:
+                      "https://via.placeholder.com/300x200?text=No+Bookings",
+                  }}
+                  style={styles.placeholderImage}
+                  resizeMode="cover"
+                />
+                <Text style={styles.cardText}>No Bookings</Text>
               </View>
-            </TouchableOpacity>
+            )
           ) : (
-            // Get Started view when there are no listings.
+            // Get Started view when there are no property listings.
             <View style={styles.getStartedContainer}>
               <Text style={styles.getStartedTitle}>Get Started</Text>
               <Text style={styles.getStartedBody}>
-                You have no property listings yet. List your first property to start hosting!
+                You have no property listings yet. List your first property to
+                start hosting!
               </Text>
               <TouchableOpacity
                 style={styles.listButton}
                 onPress={() => router.push("../property-setup")}
               >
-                <Text style={styles.listButtonText}>List Your First Property</Text>
+                <Text style={styles.listButtonText}>
+                  List Your First Property
+                </Text>
               </TouchableOpacity>
             </View>
           )}
 
-          {/* Button to view all listings */}
+          {/* Button to view all bookings */}
           {properties.length > 0 && (
             <TouchableOpacity
               style={styles.listingsButton}
-              onPress={() => router.push("/(host)/listings")}
+              onPress={() => router.push("/(host)/bookings")}
             >
-              <Text style={styles.listingsButtonText}>View All Listings</Text>
+              <Text style={styles.listingsButtonText}>View All Bookings</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -303,6 +330,12 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 16,
     fontWeight: "bold",
+  },
+  placeholderImage: {
+    width: "100%",
+    height: 150,
+    marginBottom: 10,
+    borderRadius: 10,
   },
 });
 

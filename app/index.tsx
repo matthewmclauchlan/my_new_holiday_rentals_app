@@ -1,7 +1,5 @@
 // app/index.tsx
 import React from "react";
-import { Text, View } from "react-native";
-import { ID } from "react-native-appwrite";
 import { Redirect } from "expo-router";
 import { useGlobalContext } from "./global-provider";
 
@@ -13,6 +11,7 @@ export default function Main() {
 
   // If the user has an approved host profile, redirect to the host tabs.
   const approvalStatusHost = user.hostProfile && user.hostProfile.approvalStatus;
+  
   return approvalStatusHost ? (
     <Redirect href="/(host)/hostTabs" />
   ) : (

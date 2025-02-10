@@ -55,7 +55,8 @@ const Listings = () => {
           // Update the route below to match your file structure.
           // If your file is named "editProperty.tsx" inside app/(host)/properties/,
           // then the route below should work.
-          router.push(`../propertyProfile/editProperty?id=${item.$id}`)
+          router.push(`../propertyProfile/${item.$id}`)
+
         }
       >
         <Image source={imageUrl} style={styles.cardImage} />

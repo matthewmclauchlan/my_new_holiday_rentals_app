@@ -35,6 +35,7 @@ const HostTabsLayout = () => {
           borderTopColor: "#0061FF1A",
           borderTopWidth: 1,
           minHeight: 70,
+          paddingBottom: 10, // add some bottom padding
         },
       }}
     >
@@ -45,6 +46,16 @@ const HostTabsLayout = () => {
           headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon focused={focused} icon={icons.home} title="Home" />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="hostCalendarPage"
+        options={{
+          title: "Calendar",
+          headerShown: false,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon focused={focused} icon={icons.calendar} title="Calendar" />
           ),
         }}
       />
@@ -78,7 +89,6 @@ const HostTabsLayout = () => {
           ),
         }}
       />
-     
     </Tabs>
   );
 };
@@ -88,7 +98,8 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingVertical: 5, // Gives extra space for the icon and label
+    // Shift the icon container downwards within the tab bar:
+    transform: [{ translateY: 8 }],
   },
   icon: {
     width: 28,
@@ -97,8 +108,8 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 12,
     marginTop: 4,
-    textAlign: "center", // Center the label text
-    flexWrap: "wrap", // Allow text to wrap if it is too long
+    textAlign: "center",
+    flexWrap: "wrap",
   },
 });
 

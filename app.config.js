@@ -51,6 +51,7 @@ export default {
       appwriteHouseRulesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_HOUSE_RULES_COLLECTION_ID,
       appwriteAmenitiesCollectionId: process.env.EXPO_PUBLIC_APPWRITE_AMENITIES_COLLECTION_ID,
       appwriteHostCollectionId: process.env.EXPO_PUBLIC_APPWRITE_HOST_COLLECTION_ID,
+      appwritePriceAdjustmentsId: process.env.EXPO_PUBLIC_APPWRITE_PRICE_ADJUSTMENTS_COLLECTION_ID,
       glideApiKey: process.env.GLIDE_API_KEY,
       glideAppId: process.env.GLIDE_APP_ID,
       webhookSecret: process.env.WEBHOOK_SECRET,

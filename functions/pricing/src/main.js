@@ -1,6 +1,5 @@
 // calculateBookingPrice.js
 
-// Import the Appwrite SDK modules using ES module syntax.
 import { Client, Databases, Query } from 'node-appwrite';
 
 // Initialize the Appwrite client using environment variables.
@@ -14,8 +13,8 @@ client
 const databases = new Databases(client);
 
 /**
- * Helper: Fetch the pricing rules for a property.
- * Assumes the PRICE_RULES_COLLECTION contains documents with a field "propertyId".
+ * Fetch the pricing rules for a property.
+ * Assumes that the PRICE_RULES_COLLECTION has documents with a field "propertyId".
  */
 async function getPriceRules(propertyId) {
   const response = await databases.listDocuments(
@@ -30,7 +29,7 @@ async function getPriceRules(propertyId) {
 }
 
 /**
- * Helper: Fetch price adjustments for a property over specific dates.
+ * Fetch price adjustments (override prices) for a given set of dates.
  * Returns an object mapping date strings to override prices.
  */
 async function getPriceAdjustments(propertyId, dates) {
@@ -50,7 +49,7 @@ async function getPriceAdjustments(propertyId, dates) {
 }
 
 /**
- * Helper: Return an array of dates (YYYY-MM-DD) between startDate and endDate.
+ * Returns an array of dates (in "YYYY-MM-DD" format) between startDate and endDate (inclusive).
  */
 function getDatesInRange(startDate, endDate) {
   const start = new Date(startDate);
@@ -68,70 +67,70 @@ function getDatesInRange(startDate, endDate) {
 }
 
 /**
- * Main Cloud Function to calculate booking price.
- * The function expects its input (as a JSON object) in process.env.APPWRITE_FUNCTION_DATA.
- * Expected payload example:
+ * Main Cloud Function: calculates the booking price.
+ * Expects its payload (as a JSON string) in req.body (or in process.env.APPWRITE_FUNCTION_DATA).
+ * Example payload:
  * {
  *   "propertyId": "67ab3b67a7ae367e9420",
  *   "bookingDates": ["2025-03-01", "2025-03-02", "2025-03-03"],
  *   "guestInfo": { "adults": 2, "children": 1, "infants": 0, "pets": 1 }
  * }
  */
-export default async function main() {
+export default async function main(context, req) {
   try {
-    // Parse the function input.
-    const payload = JSON.parse(process.env.APPWRITE_FUNCTION_DATA || "{}");
+    // Parse the payload from req.body if available; otherwise, fallback to process.env.
+    const payload = req.body ? JSON.parse(req.body) : JSON.parse(process.env.APPWRITE_FUNCTION_DATA || "{}");
     const { propertyId, bookingDates, guestInfo } = payload;
     if (!propertyId || !bookingDates || !Array.isArray(bookingDates) || !guestInfo) {
       throw new Error('Invalid payload');
     }
-
-    // 1. Fetch pricing rules for the property.
+    
+    // 1. Fetch the pricing rules.
     const priceRules = await getPriceRules(propertyId);
-
-    // 2. Fetch any price adjustments for the booking dates.
+    
+    // 2. Fetch price adjustments for the booking dates.
     const adjustments = await getPriceAdjustments(propertyId, bookingDates);
-
-    // 3. Calculate the nightly breakdown.
+    
+    // 3. Calculate nightly rates.
     const nightlyBreakdown = bookingDates.map(date => {
       const dayOfWeek = new Date(date).getDay();
-      // Assume weekend is Saturday (6) and Sunday (0).
+      // Assume weekends are Saturday (6) and Sunday (0).
       let baseRate = (dayOfWeek === 0 || dayOfWeek === 6)
-        ? priceRules.basePricePerNightWeekend
-        : priceRules.basePricePerNight;
-      // Apply override if available.
+          ? priceRules.basePricePerNightWeekend
+          : priceRules.basePricePerNight;
+      // Override if an adjustment exists.
       if (adjustments[date] !== undefined) {
         baseRate = adjustments[date];
       }
       return { date, rate: baseRate };
     });
-
-    // 4. Calculate subtotal (sum of nightly rates).
+    
+    // 4. Calculate the subtotal (sum of nightly rates).
     const subTotal = nightlyBreakdown.reduce((sum, entry) => sum + entry.rate, 0);
-
+    
     // 5. Additional fees.
     const cleaningFee = priceRules.cleaningFee;
     const petFee = guestInfo.pets > 0 ? priceRules.petFee : 0;
-
-    // 6. Discounts (example: weekly or monthly discount).
+    
+    // 6. Apply discounts (example: weekly or monthly discount).
     let discount = 0;
     if (bookingDates.length >= 7 && priceRules.weeklyDiscount) {
       discount = subTotal * (priceRules.weeklyDiscount / 100);
     } else if (bookingDates.length >= 30 && priceRules.monthlyDiscount) {
       discount = subTotal * (priceRules.monthlyDiscount / 100);
     }
-
-    // 7. Additional fees (booking fee, VAT, etc.).
-    const bookingFee = 25; // Example fixed booking fee.
+    
+    // 7. Calculate additional fees: booking fee and VAT.
+    const bookingFee = 25; // Fixed booking fee, for example.
     const vatPercentage = 15; // Example VAT percentage.
     const vat = (subTotal - discount + cleaningFee + petFee + bookingFee) * (vatPercentage / 100);
-
+    
     // 8. Calculate total.
     const total = subTotal - discount + cleaningFee + petFee + bookingFee + vat;
-
-    // 9. Build a breakdown object.
+    
+    // 9. Build the breakdown object.
     const breakdown = {
-      nightlyBreakdown, // Array of nightly rate details.
+      nightlyBreakdown,
       subTotal,
       discount,
       cleaningFee,
@@ -143,25 +142,31 @@ export default async function main() {
       bookingDates,
       calculatedAt: new Date().toISOString(),
     };
-
-    // 10. Optionally, store the breakdown in the BookingPriceDetails collection.
+    
+    // 10. Optionally, store the breakdown in a BookingPriceDetails collection.
     const savedBreakdown = await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
-      'unique()', // Let Appwrite generate an ID.
+      'unique()', // Auto-ID generation.
       {
         propertyId,
         breakdown,
         createdAt: new Date().toISOString(),
       }
     );
-
-    // 11. (Optional) Send data to Glide here via an HTTP request.
-
-    // Output the breakdown as the function result.
-    console.log(JSON.stringify(breakdown));
+    
+    // Set the function response.
+    context.res = {
+      status: 200,
+      body: JSON.stringify(breakdown)
+    };
+    return context.res;
   } catch (error) {
-    console.error("Error calculating booking price:", error);
-    console.log(JSON.stringify({ error: error.message }));
+    context.log("Error calculating booking price:", error);
+    context.res = {
+      status: 500,
+      body: JSON.stringify({ error: error.message })
+    };
+    return context.res;
   }
 }

@@ -67,7 +67,7 @@ function getDatesInRange(startDate, endDate) {
 
 /**
  * Main Cloud Function: calculates the booking price.
- * The function expects its input (as a JSON string) either in req.body or in process.env.APPWRITE_FUNCTION_DATA.
+ * Expects its payload (as a JSON string) in process.env.APPWRITE_FUNCTION_DATA.
  * Example payload:
  * {
  *   "propertyId": "67ab3b67a7ae367e9420",
@@ -75,15 +75,11 @@ function getDatesInRange(startDate, endDate) {
  *   "guestInfo": { "adults": 2, "children": 1, "infants": 0, "pets": 1 }
  * }
  */
-export default async function main(context, req) {
+export default async function main(context) {
   try {
-    // Log the entire request object for debugging.
-    context.log("Full request object:", req);
-
-    // Safely extract the payload.
-    const input = (req && req.body) || process.env.APPWRITE_FUNCTION_DATA || "{}";
+    // Extract the payload from APPWRITE_FUNCTION_DATA.
+    const input = process.env.APPWRITE_FUNCTION_DATA || "{}";
     context.log("Raw payload input:", input);
-
     const payload = JSON.parse(input);
     context.log("Parsed payload:", payload);
     
@@ -105,22 +101,20 @@ export default async function main(context, req) {
       let baseRate = (dayOfWeek === 0 || dayOfWeek === 6)
           ? priceRules.basePricePerNightWeekend
           : priceRules.basePricePerNight;
-      
       if (adjustments[date] !== undefined) {
         baseRate = adjustments[date];
       }
-      
       return { date, rate: baseRate };
     });
     
-    // 4. Calculate subtotal.
+    // 4. Calculate the subtotal (sum of nightly rates).
     const subTotal = nightlyBreakdown.reduce((sum, entry) => sum + entry.rate, 0);
     
     // 5. Additional fees.
     const cleaningFee = priceRules.cleaningFee;
     const petFee = guestInfo.pets > 0 ? priceRules.petFee : 0;
     
-    // 6. Apply discounts.
+    // 6. Apply discounts (example: weekly or monthly discount).
     let discount = 0;
     if (bookingDates.length >= 7 && priceRules.weeklyDiscount) {
       discount = subTotal * (priceRules.weeklyDiscount / 100);
@@ -133,7 +127,7 @@ export default async function main(context, req) {
     const vatPercentage = 15; // Example VAT percentage.
     const vat = (subTotal - discount + cleaningFee + petFee + bookingFee) * (vatPercentage / 100);
     
-    // 8. Calculate total.
+    // 8. Calculate the total.
     const total = subTotal - discount + cleaningFee + petFee + bookingFee + vat;
     
     // 9. Build the breakdown object.
@@ -151,7 +145,7 @@ export default async function main(context, req) {
       calculatedAt: new Date().toISOString(),
     };
     
-    // 10. Store the breakdown in the BookingPriceDetails collection.
+    // 10. Optionally, store the breakdown in the BookingPriceDetails collection.
     const savedBreakdown = await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,

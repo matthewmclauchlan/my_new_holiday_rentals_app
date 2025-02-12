@@ -144,32 +144,32 @@ export default async function main(context, req) {
     const total = subTotal - discount + cleaningFee + petFee + bookingFee + vat;
     context.log("Total:", total);
     
-    // 9. Build the breakdown object.
-    const breakdown = {
-      nightlyBreakdown,
-      subTotal,
-      discount,
-      cleaningFee,
-      petFee,
-      bookingFee,
-      vat,
-      total,
-      guestInfo,
-      bookingDates,
-      calculatedAt: new Date().toISOString(),
-    };
-    
-    // 10. Optionally store the breakdown in the BookingPriceDetails collection.
-    await databases.createDocument(
-      process.env.DATABASE_ID,
-      process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
-      'unique()',
-      {
-        propertyId,
-        breakdown,
-        createdAt: new Date().toISOString(),
-      }
-    );
+    // 9. Build the detailed breakdown.
+const breakdown = {
+  nightlyBreakdown,
+  subTotal,
+  discount,
+  cleaningFee,
+  petFee,
+  bookingFee,
+  vat,
+  total,
+  guestInfo,
+  bookingDates,
+  calculatedAt: new Date().toISOString(),
+};
+
+// 10. Store the breakdown (wrapped in an array) in the BookingPriceDetails collection.
+await databases.createDocument(
+  process.env.DATABASE_ID,
+  process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
+  'unique()',
+  {
+    propertyId,
+    breakdown: [breakdown],  // Wrap the breakdown object in an array
+    createdAt: new Date().toISOString(),
+  }
+);
     
     context.res = {
       status: 200,

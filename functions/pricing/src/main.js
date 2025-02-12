@@ -80,7 +80,10 @@ export default async function main(context, req) {
   try {
     // Safely extract the payload.
     const input = (req && req.body) || process.env.APPWRITE_FUNCTION_DATA || "{}";
+    console.log("Raw payload input:", input);
     const payload = JSON.parse(input);
+    console.log("Parsed payload:", payload);
+    
     const { propertyId, bookingDates, guestInfo } = payload;
     if (!propertyId || !bookingDates || !Array.isArray(bookingDates) || !guestInfo) {
       throw new Error('Invalid payload');
@@ -115,7 +118,7 @@ export default async function main(context, req) {
     const cleaningFee = priceRules.cleaningFee;
     const petFee = guestInfo.pets > 0 ? priceRules.petFee : 0;
     
-    // 6. Discounts (example: weekly or monthly discount).
+    // 6. Apply discounts (example: weekly or monthly discount).
     let discount = 0;
     if (bookingDates.length >= 7 && priceRules.weeklyDiscount) {
       discount = subTotal * (priceRules.weeklyDiscount / 100);
@@ -150,7 +153,7 @@ export default async function main(context, req) {
     const savedBreakdown = await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
-      'unique()', // Auto-ID generation.
+      'unique()', // Let Appwrite generate an ID.
       {
         propertyId,
         breakdown,
@@ -158,14 +161,14 @@ export default async function main(context, req) {
       }
     );
     
-    // Set the function response.
+    // Return the breakdown as the function response.
     context.res = {
       status: 200,
       body: JSON.stringify(breakdown)
     };
     return context.res;
   } catch (error) {
-    context.log("Error calculating booking price:", error);
+    console.error("Error calculating booking price:", error);
     context.res = {
       status: 500,
       body: JSON.stringify({ error: error.message })

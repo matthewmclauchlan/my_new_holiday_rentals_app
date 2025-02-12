@@ -145,35 +145,42 @@ export default async function main(context, req) {
     context.log("Total:", total);
     
     // 9. Build the detailed breakdown.
-const breakdown = {
-  nightlyBreakdown,
-  subTotal,
-  discount,
-  cleaningFee,
-  petFee,
-  bookingFee,
-  vat,
-  total,
-  guestInfo,
-  bookingDates,
-  calculatedAt: new Date().toISOString(),
-};
-
-// 10. Store the breakdown (wrapped in an array) in the BookingPriceDetails collection.
-await databases.createDocument(
-  process.env.DATABASE_ID,
-  process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
-  'unique()',
-  {
-    propertyId,
-    breakdown: [breakdown],  // Wrap the breakdown object in an array
-    createdAt: new Date().toISOString(),
-  }
-);
+    const breakdown = {
+      nightlyBreakdown,
+      subTotal,
+      discount,
+      cleaningFee,
+      petFee,
+      bookingFee,
+      vat,
+      total,
+      guestInfo,
+      bookingDates,
+      calculatedAt: new Date().toISOString(),
+    };
+    
+    // Convert breakdown to a string and log its length.
+    const breakdownString = JSON.stringify(breakdown);
+    context.log("Breakdown string length:", breakdownString.length);
+    if (breakdownString.length > 5000) {
+      throw new Error("Breakdown data exceeds 5000 characters.");
+    }
+    
+    // 10. Store the breakdown in the BookingPriceDetails collection.
+    await databases.createDocument(
+      process.env.DATABASE_ID,
+      process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
+      'unique()',
+      {
+        propertyId,
+        breakdown: [breakdownString],
+        createdAt: new Date().toISOString(),
+      }
+    );
     
     context.res = {
       status: 200,
-      body: JSON.stringify(breakdown)
+      body: breakdownString
     };
     return context.res;
   } catch (error) {
@@ -185,3 +192,4 @@ await databases.createDocument(
     return context.res;
   }
 }
+

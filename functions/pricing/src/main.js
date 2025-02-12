@@ -1,33 +1,27 @@
 // testPayload.js
 
-// Import the Appwrite SDK (if needed for further expansion)
 import { Client } from 'node-appwrite';
 
 /**
  * Main Cloud Function.
- * This function expects its input as a JSON string either in req.body
- * or in process.env.APPWRITE_FUNCTION_DATA.
- * It logs the raw and parsed payload, and then returns it.
+ * This function reads its input from process.env.APPWRITE_FUNCTION_DATA.
+ * The expected payload should be provided under the "data" key as a stringified JSON.
  *
- * Example payload:
+ * Example payload to send (raw JSON in Postman):
  * {
- *   "message": "Hello, Appwrite!",
- *   "value": 42
+ *   "data": "{\"message\": \"Hello, Appwrite!\", \"value\": 42}"
  * }
  */
-export default async function main(context, req) {
+export default async function main(context) {
   try {
-    // Extract the payload from req.body or fallback to environment variable.
-    const input = (req && req.body) || process.env.APPWRITE_FUNCTION_DATA || "{}";
-    
-    // Log the raw payload.
-    context.log("Raw payload input:", input);
+    // Read the payload from the environment variable.
+    const input = process.env.APPWRITE_FUNCTION_DATA || "{}";
+    context.log("APPWRITE_FUNCTION_DATA:", input);
     
     // Parse the payload.
     const payload = JSON.parse(input);
     context.log("Parsed payload:", payload);
     
-    // Return a simple response echoing the payload.
     context.res = {
       status: 200,
       body: JSON.stringify({
@@ -45,3 +39,4 @@ export default async function main(context, req) {
     return context.res;
   }
 }
+

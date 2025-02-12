@@ -28,18 +28,20 @@ async function getPriceRules(propertyId) {
 
 /**
  * Fetch price adjustments (override prices) for the given set of dates.
- * Instead of Query.in, we build a Query.or for each date.
+ * Instead of using Query.in, we build a Query.or for each date equality condition.
  * Returns an object mapping date strings to override prices.
  */
 async function getPriceAdjustments(propertyId, dates) {
-  // Build a query that OR's together each date equality condition.
+  // Build an array of queries for each date.
   const dateQueries = dates.map(date => Query.equal('date', date));
+  
+  // Use Query.or with the array directly.
   const response = await databases.listDocuments(
     process.env.DATABASE_ID,
     process.env.PRICE_ADJUSTMENTS_COLLECTION_ID,
     [
       Query.equal('propertyId', propertyId),
-      Query.or(...dateQueries)
+      Query.or(dateQueries)
     ]
   );
   const adjustments = {};
@@ -79,7 +81,7 @@ function getDatesInRange(startDate, endDate) {
  */
 export default async function main(context, req) {
   try {
-    // Extract the payload from req.body (or fallback).
+    // Extract the payload using the working extraction logic.
     const actualReq = req || context.req;
     let payload = (actualReq && actualReq.body) || context.payload || process.env.APPWRITE_FUNCTION_DATA || "{}";
     if (typeof payload === "string") {

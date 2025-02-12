@@ -32,10 +32,7 @@ async function getPriceRules(propertyId) {
  * Returns an object mapping date strings to override prices.
  */
 async function getPriceAdjustments(propertyId, dates) {
-  // Build an array of queries for each date.
   const dateQueries = dates.map(date => Query.equal('date', date));
-  
-  // Use Query.or with the array directly.
   const response = await databases.listDocuments(
     process.env.DATABASE_ID,
     process.env.PRICE_ADJUSTMENTS_COLLECTION_ID,
@@ -70,13 +67,29 @@ function getDatesInRange(startDate, endDate) {
 }
 
 /**
+ * Fetch service fees from your fees collection.
+ * This collection is identified by the environment variable FEES_COLLECTION_ID.
+ */
+async function getServiceFees() {
+  const response = await databases.listDocuments(
+    process.env.DATABASE_ID,
+    process.env.FEES_COLLECTION_ID,
+    [] // assuming a single active document exists
+  );
+  if (response.documents.length > 0) {
+    return response.documents[0];
+  }
+  throw new Error("Service fees not found");
+}
+
+/**
  * Main Cloud Function: calculates the booking price and returns a detailed breakdown.
  *
  * Expected payload (as JSON) should include:
  * {
  *   "propertyId": "67ab3b67a7ae367e9420",
- *   "bookingDates": ["2025-03-01", "2025-03-02", "2025-03-03"],
- *   "guestInfo": { "adults": 2, "children": 1, "infants": 0, "pets": 1 }
+ *   "bookingDates": ["2025-02-16", "2025-02-17", "2025-02-18", "2025-02-19"],
+ *   "guestInfo": { "adults": 2, "children": 0, "infants": 0, "pets": 0 }
  * }
  */
 export default async function main(context, req) {
@@ -134,17 +147,25 @@ export default async function main(context, req) {
     }
     context.log("Discount:", discount);
     
-    // 7. Additional fees: booking fee and VAT.
-    const bookingFee = 25; // Example fixed booking fee.
-    const vatPercentage = 15; // Example VAT percentage.
+    // 7. Fetch service fees.
+    const serviceFees = await getServiceFees();
+    context.log("Fetched service fees:", JSON.stringify(serviceFees));
+    
+    // 8. Calculate the booking fee using the guestBookingFee percentage.
+    const guestBookingFeePercent = serviceFees.guestBookingFee; // e.g., 7 means 7%
+    const bookingFee = (subTotal - discount + cleaningFee + petFee) * (guestBookingFeePercent / 100);
+    context.log("Booking fee:", bookingFee);
+    
+    // 9. Calculate VAT.
+    const vatPercentage = 15; // hardcoded VAT percentage; could also be from env.
     const vat = (subTotal - discount + cleaningFee + petFee + bookingFee) * (vatPercentage / 100);
     context.log("VAT:", vat);
     
-    // 8. Calculate the total.
+    // 10. Calculate the total.
     const total = subTotal - discount + cleaningFee + petFee + bookingFee + vat;
     context.log("Total:", total);
     
-    // 9. Build the detailed breakdown.
+    // 11. Build the detailed breakdown.
     const breakdown = {
       nightlyBreakdown,
       subTotal,
@@ -157,6 +178,10 @@ export default async function main(context, req) {
       guestInfo,
       bookingDates,
       calculatedAt: new Date().toISOString(),
+      serviceFees: {
+         guestBookingFee: guestBookingFeePercent,
+         hostServiceFee: serviceFees.hostServiceFee,
+      }
     };
     
     // Convert breakdown to a string and log its length.
@@ -166,7 +191,7 @@ export default async function main(context, req) {
       throw new Error("Breakdown data exceeds 5000 characters.");
     }
     
-    // 10. Store the breakdown in the BookingPriceDetails collection.
+    // 12. Store the breakdown in the BookingPriceDetails collection.
     await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
@@ -180,16 +205,15 @@ export default async function main(context, req) {
     
     context.res = {
       status: 200,
-      body: breakdownString
+      body: breakdownString,
     };
     return context.res;
   } catch (error) {
     context.error("Error calculating booking price:", error);
     context.res = {
       status: 500,
-      body: JSON.stringify({ error: error.message })
+      body: JSON.stringify({ error: error.message }),
     };
     return context.res;
   }
 }
-

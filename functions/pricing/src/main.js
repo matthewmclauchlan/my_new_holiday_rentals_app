@@ -5,8 +5,8 @@ import { Client, Databases, Query } from 'node-appwrite';
 // Initialize the Appwrite client using environment variables.
 const client = new Client();
 client
-  .setEndpoint(process.env.APPWRITE_ENDPOINT)
-  .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID)
+  .setEndpoint(process.env.APPWRITE_ENDPOINT) // e.g., "https://your-appwrite-endpoint/v1"
+  .setProject(process.env.APPWRITE_FUNCTION_PROJECT_ID) // using your APPWRITE_FUNCTION_PROJECT_ID variable
   .setKey(process.env.APPWRITE_API_KEY);
 
 const databases = new Databases(client);
@@ -27,16 +27,19 @@ async function getPriceRules(propertyId) {
 }
 
 /**
- * Fetch price adjustments for a set of dates.
+ * Fetch price adjustments (override prices) for the given set of dates.
+ * Instead of Query.in, we build a Query.or for each date.
  * Returns an object mapping date strings to override prices.
  */
 async function getPriceAdjustments(propertyId, dates) {
+  // Build a query that OR's together each date equality condition.
+  const dateQueries = dates.map(date => Query.equal('date', date));
   const response = await databases.listDocuments(
     process.env.DATABASE_ID,
     process.env.PRICE_ADJUSTMENTS_COLLECTION_ID,
     [
       Query.equal('propertyId', propertyId),
-      Query.in('date', dates)
+      Query.or(...dateQueries)
     ]
   );
   const adjustments = {};
@@ -47,7 +50,7 @@ async function getPriceAdjustments(propertyId, dates) {
 }
 
 /**
- * Generate an array of dates (YYYY-MM-DD) between startDate and endDate (inclusive).
+ * Returns an array of dates (YYYY-MM-DD) between startDate and endDate (inclusive).
  */
 function getDatesInRange(startDate, endDate) {
   const start = new Date(startDate);
@@ -76,7 +79,7 @@ function getDatesInRange(startDate, endDate) {
  */
 export default async function main(context, req) {
   try {
-    // Extract payload from req.body (or fallback).
+    // Extract the payload from req.body (or fallback).
     const actualReq = req || context.req;
     let payload = (actualReq && actualReq.body) || context.payload || process.env.APPWRITE_FUNCTION_DATA || "{}";
     if (typeof payload === "string") {
@@ -93,13 +96,14 @@ export default async function main(context, req) {
     const priceRules = await getPriceRules(propertyId);
     context.log("Fetched priceRules:", JSON.stringify(priceRules));
     
-    // 2. Fetch price adjustments.
+    // 2. Fetch price adjustments for the booking dates.
     const adjustments = await getPriceAdjustments(propertyId, bookingDates);
     context.log("Fetched adjustments:", JSON.stringify(adjustments));
     
-    // 3. Calculate nightly breakdown.
+    // 3. Calculate the nightly breakdown.
     const nightlyBreakdown = bookingDates.map(date => {
       const dayOfWeek = new Date(date).getDay();
+      // Assume weekends are Saturday (6) and Sunday (0).
       let baseRate = (dayOfWeek === 0 || dayOfWeek === 6)
           ? priceRules.basePricePerNightWeekend
           : priceRules.basePricePerNight;
@@ -110,7 +114,7 @@ export default async function main(context, req) {
     });
     context.log("Nightly breakdown:", JSON.stringify(nightlyBreakdown));
     
-    // 4. Calculate subtotal.
+    // 4. Calculate the subtotal (sum of nightly rates).
     const subTotal = nightlyBreakdown.reduce((sum, entry) => sum + entry.rate, 0);
     context.log("Subtotal:", subTotal);
     
@@ -134,7 +138,7 @@ export default async function main(context, req) {
     const vat = (subTotal - discount + cleaningFee + petFee + bookingFee) * (vatPercentage / 100);
     context.log("VAT:", vat);
     
-    // 8. Calculate total.
+    // 8. Calculate the total.
     const total = subTotal - discount + cleaningFee + petFee + bookingFee + vat;
     context.log("Total:", total);
     
@@ -153,7 +157,7 @@ export default async function main(context, req) {
       calculatedAt: new Date().toISOString(),
     };
     
-    // 10. Store the breakdown in the BookingPriceDetails collection.
+    // 10. Optionally store the breakdown in the BookingPriceDetails collection.
     await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,

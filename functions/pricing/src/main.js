@@ -14,7 +14,6 @@ const databases = new Databases(client);
 
 /**
  * Fetch the pricing rules for a property.
- * Assumes that the PRICE_RULES_COLLECTION contains documents with a field "propertyId".
  */
 async function getPriceRules(propertyId) {
   const response = await databases.listDocuments(
@@ -29,7 +28,7 @@ async function getPriceRules(propertyId) {
 }
 
 /**
- * Fetch price adjustments (override prices) for a given set of dates.
+ * Fetch price adjustments (override prices) for the given set of dates.
  * Returns an object mapping date strings to override prices.
  */
 async function getPriceAdjustments(propertyId, dates) {
@@ -49,7 +48,7 @@ async function getPriceAdjustments(propertyId, dates) {
 }
 
 /**
- * Returns an array of dates (in "YYYY-MM-DD" format) between startDate and endDate (inclusive).
+ * Returns an array of dates (YYYY-MM-DD) between startDate and endDate (inclusive).
  */
 function getDatesInRange(startDate, endDate) {
   const start = new Date(startDate);
@@ -78,11 +77,15 @@ function getDatesInRange(startDate, endDate) {
  */
 export default async function main(context, req) {
   try {
+    // Log the entire request object for debugging.
+    context.log("Full request object:", req);
+
     // Safely extract the payload.
     const input = (req && req.body) || process.env.APPWRITE_FUNCTION_DATA || "{}";
-    console.log("Raw payload input:", input);
+    context.log("Raw payload input:", input);
+
     const payload = JSON.parse(input);
-    console.log("Parsed payload:", payload);
+    context.log("Parsed payload:", payload);
     
     const { propertyId, bookingDates, guestInfo } = payload;
     if (!propertyId || !bookingDates || !Array.isArray(bookingDates) || !guestInfo) {
@@ -103,7 +106,6 @@ export default async function main(context, req) {
           ? priceRules.basePricePerNightWeekend
           : priceRules.basePricePerNight;
       
-      // Override if an adjustment exists.
       if (adjustments[date] !== undefined) {
         baseRate = adjustments[date];
       }
@@ -111,14 +113,14 @@ export default async function main(context, req) {
       return { date, rate: baseRate };
     });
     
-    // 4. Calculate the subtotal (sum of nightly rates).
+    // 4. Calculate subtotal.
     const subTotal = nightlyBreakdown.reduce((sum, entry) => sum + entry.rate, 0);
     
     // 5. Additional fees.
     const cleaningFee = priceRules.cleaningFee;
     const petFee = guestInfo.pets > 0 ? priceRules.petFee : 0;
     
-    // 6. Apply discounts (example: weekly or monthly discount).
+    // 6. Apply discounts.
     let discount = 0;
     if (bookingDates.length >= 7 && priceRules.weeklyDiscount) {
       discount = subTotal * (priceRules.weeklyDiscount / 100);
@@ -149,11 +151,11 @@ export default async function main(context, req) {
       calculatedAt: new Date().toISOString(),
     };
     
-    // 10. Optionally, store the breakdown in the BookingPriceDetails collection.
+    // 10. Store the breakdown in the BookingPriceDetails collection.
     const savedBreakdown = await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
-      'unique()', // Let Appwrite generate an ID.
+      'unique()',
       {
         propertyId,
         breakdown,
@@ -161,14 +163,13 @@ export default async function main(context, req) {
       }
     );
     
-    // Return the breakdown as the function response.
     context.res = {
       status: 200,
       body: JSON.stringify(breakdown)
     };
     return context.res;
   } catch (error) {
-    console.error("Error calculating booking price:", error);
+    context.error("Error calculating booking price:", error);
     context.res = {
       status: 500,
       body: JSON.stringify({ error: error.message })

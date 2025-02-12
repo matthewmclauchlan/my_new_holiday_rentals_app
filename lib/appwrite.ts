@@ -1,5 +1,3 @@
-// lib/appwrite.ts
-
 import {
   Client,
   Account,
@@ -16,11 +14,13 @@ import * as Linking from "expo-linking";
 import { openAuthSessionAsync } from "expo-web-browser";
 import { FilterOptions } from "@/lib/types"; // Already defined in types.ts
 import Constants from "expo-constants";
+import * as ImagePicker from "expo-image-picker";
+
 
 // Safely access the configuration extra values
 const extra = Constants.manifest?.extra || Constants.expoConfig?.extra || {};
 
-// Destructure with default values
+
 const {
   appwriteEndpoint = "",
   appwriteProjectId = "",
@@ -47,6 +47,7 @@ const {
   webhookSecret = "",
 } = extra;
 
+
 export const config = {
   platform: "com.spanishholidayrentals.shr",
   endpoint: appwriteEndpoint,
@@ -67,9 +68,10 @@ export const config = {
   mediaCollectionId: appwriteMediaCollectionId,
   houseRulesCollectionId: appwriteHouseRulesCollectionId,
   amenitiesCollectionId: appwriteAmenitiesCollectionId,
-  hostCollectionId: appwriteHostCollectionId, // Use only this host collection.
+  hostCollectionId: appwriteHostCollectionId,
   priceAdjustmentsId: appwritePriceAdjustmentsId,
 };
+
 
 export const glideConfig = {
   glideApiKey,
@@ -77,15 +79,18 @@ export const glideConfig = {
   webhookSecret,
 };
 
+
 export const client = new Client()
   .setEndpoint(config.endpoint)
   .setProject(config.projectId)
   .setPlatform(config.platform);
 
+
 export const avatar = new Avatars(client);
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
+
 
 /**
  * Utility: ensures hostCollectionId is defined.
@@ -97,6 +102,7 @@ function getHostCollectionIdOrThrow(): string {
   }
   return hostId;
 }
+
 
 /**
  * Assign the "owner" role to a user.
@@ -123,6 +129,7 @@ export async function addOwnerRole(userId: string): Promise<Models.Document | nu
   }
 }
 
+
 /**
  * OAuth2 Login with Google.
  */
@@ -146,6 +153,7 @@ export async function login() {
   }
 }
 
+
 /**
  * Logout current session.
  */
@@ -157,6 +165,7 @@ export async function logout() {
     return false;
   }
 }
+
 
 /**
  * Fetch roles for a user.
@@ -174,6 +183,7 @@ export async function getRolesForUser(userId: string) {
     return [];
   }
 }
+
 
 /**
  * Get the current logged-in user.
@@ -194,6 +204,7 @@ export async function getCurrentUser() {
   }
 }
 
+
 /**
  * Get current user ID.
  */
@@ -207,6 +218,7 @@ export async function getCurrentUserId() {
   }
 }
 
+
 /**
  * (Used by BookingCalendarModal) Return daily prices or a mock object.
  */
@@ -218,6 +230,7 @@ export async function getDailyPricesForProperty(propertyId: string): Promise<Rec
     return {};
   }
 }
+
 
 /**
  * Fetch single property by ID.
@@ -244,6 +257,7 @@ export async function getPropertyById(id: string): Promise<Models.Document | nul
     return null;
   }
 }
+
 
 /**
  * Fetch properties with FilterOptions.
@@ -323,6 +337,7 @@ export async function getProperties({
   }
 }
 
+
 /**
  * Fetch the latest properties.
  */
@@ -346,6 +361,7 @@ export async function getLatestProperties(): Promise<Models.Document[]> {
   }
 }
 
+
 /**
  * Create a new booking.
  */
@@ -359,6 +375,7 @@ export async function createBooking(bookingData: {
   createdAt: string;
   updatedAt: string;
   status: string;
+  hostId?: string;
 }) {
   try {
     const requiredFields = [
@@ -377,6 +394,13 @@ export async function createBooking(bookingData: {
         throw new Error(`Missing required field: ${field}`);
       }
     }
+    if (!bookingData.hostId) {
+      // Fetch property to get hostId
+      const property = await getPropertyById(bookingData.propertyId);
+      if (property && (property as any).hostId) {
+        bookingData.hostId = (property as any).hostId;
+      }
+    }
     const response = await databases.createDocument(
       config.databaseId,
       config.bookingsCollectionId,
@@ -389,6 +413,7 @@ export async function createBooking(bookingData: {
     throw error;
   }
 }
+
 
 /**
  * Fetch bookings for a given property.
@@ -407,6 +432,10 @@ export async function getBookingsForProperty(propertyId: string): Promise<any[]>
   }
 }
 
+
+/**
+ * Create a new property listing.
+ */
 /**
  * Create a new property listing.
  */
@@ -429,20 +458,28 @@ export async function createProperty(data: {
   status: "active" | "pending" | "sold" | "delisted";
   catastro: string;
   vutNumber: string;
+  hostId?: string;
 }): Promise<Models.Document> {
   const currentTime = new Date().toISOString();
+  let hostId = data.hostId;
+  if (!hostId) {
+    const hostProfile = await getHostProfileByUserId(data.userId);
+    hostId = hostProfile ? hostProfile.$id : undefined;
+    if (!hostId) {
+      throw new Error("Host profile not found; cannot create property without hostId.");
+    }
+  }
+  const propertyData: any = { ...data, createdAt: currentTime, updatedAt: currentTime };
+  // Use the non-null assertion operator to tell TypeScript that hostId is defined.
+  propertyData.hostId = hostId!;
+
   let response: Models.Document;
   try {
-    // Let Appwrite generate its own ID by passing "unique()"
     response = await databases.createDocument<Models.Document>(
       config.databaseId,
       config.propertiesCollectionId,
       "unique()",
-      {
-        ...data,
-        createdAt: currentTime,
-        updatedAt: currentTime,
-      }
+      propertyData
     );
   } catch (error: any) {
     console.error("❌ Error creating property:", error.message || error);
@@ -472,12 +509,15 @@ export async function createProperty(data: {
       catastro: data.catastro,
       approvalStatus: "pending",
       decisionDate: "",
+      hostId: hostId!, // Now guaranteed to be a string.
     });
   } catch (glideError: any) {
     console.error("❌ Error sending property listing to Glide:", glideError.message || glideError);
   }
   return response;
 }
+
+
 
 /**
  * Upsert host profile.
@@ -486,14 +526,16 @@ export async function upsertHostProfile(data: {
   userId: string;
   fullName: string;
   phoneNumber: string;
-  hostDocumentId: string;
+  hostDocumentUrl: string; // Expect a valid URL here for the host's ID image.
   termsAccepted?: boolean;
-}): Promise<void> {
+}): Promise<Models.Document> {
   const collectionId = config.hostCollectionId;
   if (!collectionId) {
     throw new Error("Missing host collection ID (EXPO_PUBLIC_APPWRITE_HOST_COLLECTION_ID).");
   }
   const now = new Date().toISOString();
+  // Generate a new unique host ID for the host profile document.
+  const newHostId = ID.unique();
   const docData: any = {
     userId: data.userId,
     fullName: data.fullName,
@@ -501,44 +543,46 @@ export async function upsertHostProfile(data: {
     approvalStatus: "pending",
     createdAt: now,
     updatedAt: now,
-    hostDocumentId: data.hostDocumentId,
+    // Set hostDocumentId to the URL provided by the caller.
+    hostDocumentId: data.hostDocumentUrl,
   };
   if (data.termsAccepted !== undefined) {
     docData.termsAccepted = data.termsAccepted;
   }
-  if (!docData.hostDocumentId) {
-    throw new Error("Missing required attribute 'hostDocumentId'");
-  }
   try {
-    await databases.createDocument(
+    const hostDoc = await databases.createDocument(
       config.databaseId,
       collectionId,
-      "unique()",
+      newHostId,
       docData,
       [
         Permission.read(`user:${data.userId}`),
         Permission.update(`user:${data.userId}`),
-        Permission.delete(`user:${data.userId}`),
+        Permission.delete(`user:${data.userId}`)
       ]
     );
     const roles = await getRolesForUser(data.userId);
     const isOwner = roles.some((roleDoc: any) => roleDoc.role === "owner");
     const payloadApprovalStatus = isOwner ? "approved" : "pending";
+    // Send host application to Glide including the new host document's ID.
     await sendHostApplicationToGlide({
       userId: data.userId,
       fullName: data.fullName,
       phoneNumber: data.phoneNumber,
-      hostDocumentId: data.hostDocumentId,
+      hostDocumentId: data.hostDocumentUrl,
       submissionDate: now,
       approvalStatus: payloadApprovalStatus,
       moderationComments: "",
       termsAccepted: data.termsAccepted ? "true" : "false",
+      hostId: newHostId, // Pass the new host document ID as hostId.
     });
+    return hostDoc;
   } catch (error: any) {
     console.error("Error creating/updating host profile document:", error.message || error);
     throw error;
   }
 }
+
 
 /**
  * Send Host Application to Glide.
@@ -552,6 +596,7 @@ export async function sendHostApplicationToGlide(data: {
   approvalStatus: string;
   moderationComments: string;
   termsAccepted: string;
+  hostId: string;
 }): Promise<void> {
   try {
     const payload = {
@@ -569,6 +614,7 @@ export async function sendHostApplicationToGlide(data: {
             "6sUf9": data.moderationComments,
             "0O96C": data.fullName,
             "KnJ6a": data.termsAccepted,
+            "fdwQC": data.hostId, // Host document ID is sent here.
           },
         },
       ],
@@ -591,6 +637,7 @@ export async function sendHostApplicationToGlide(data: {
     console.error("❌ Error sending host application to Glide:", error.message || error);
   }
 }
+
 
 /**
  * Send property listing data to Glide for moderation.
@@ -617,6 +664,7 @@ export async function sendPropertyListingToGlide(data: {
   catastro: string;
   approvalStatus: string;
   decisionDate: string;
+  hostId: string;
 }): Promise<void> {
   try {
     const payload = {
@@ -647,6 +695,7 @@ export async function sendPropertyListingToGlide(data: {
             "hN28F": data.decisionDate,
             "wskyU": data.catastro,
             "avIOt": data.vutNumber,
+            "1Odxd": data.hostId, // Pass the host ID here.
           },
         },
       ],
@@ -669,6 +718,7 @@ export async function sendPropertyListingToGlide(data: {
     console.error("❌ Error sending property listing to Glide:", error.message || error);
   }
 }
+
 
 /**
  * Fetch host profile by userId.
@@ -694,6 +744,7 @@ export async function getHostProfileByUserId(userId: string): Promise<Models.Doc
   }
 }
 
+
 /**
  * Fetch properties by user.
  */
@@ -711,6 +762,7 @@ export async function getPropertiesByUser(userId: string): Promise<Models.Docume
     return [];
   }
 }
+
 
 /**
  * Fetch amenities list.
@@ -736,24 +788,9 @@ export async function getAmenities(): Promise<{
   }
 }
 
-/**
- * Fetch house rules list.
- */
-export async function getHouseRules(): Promise<string[]> {
-  try {
-    const response = await databases.listDocuments(
-      config.databaseId,
-      config.houseRulesCollectionId
-    );
-    return response.documents.map((doc) => doc.name as string);
-  } catch (error: any) {
-    console.error("❌ Error fetching house rules:", error.message || error);
-    return [];
-  }
-}
 
 /**
- * Define interfaces for Price Rules if not already defined.
+ * Define interfaces for Price Rules.
  */
 export interface PriceRules extends Models.Document {
   propertyId: string;
@@ -765,6 +802,7 @@ export interface PriceRules extends Models.Document {
   petFee?: number;
 }
 
+
 /**
  * Interface for updating price rules.
  */
@@ -775,13 +813,13 @@ export interface PriceRulesUpdate {
   monthlyDiscount?: number;
   cleaningFee?: number;
   petFee?: number;
-  // New fields:
-  overrides?: string[]; // Each element will be a JSON string representing { date, price }
+  overrides?: string[];
   blockedDates?: string[];
 }
 
+
 /**
- * Fetch pricing rules for a given property from the priceRules collection.
+ * Fetch pricing rules for a given property.
  */
 export async function getPriceRulesForProperty(propertyId: string): Promise<PriceRules | null> {
   try {
@@ -800,8 +838,9 @@ export async function getPriceRulesForProperty(propertyId: string): Promise<Pric
   }
 }
 
+
 /**
- * Update or create pricing rules for a given property in the priceRules collection.
+ * Update or create pricing rules for a given property.
  */
 export async function updatePriceRulesForProperty(
   propertyId: string,
@@ -837,15 +876,15 @@ export async function updatePriceRulesForProperty(
   }
 }
 
+
 /**
- * New Function: Update (or create) price adjustments for a property in a separate collection.
+ * Update or create price adjustments for a property.
  */
 export async function updatePriceAdjustmentsForProperty(
   propertyId: string,
   adjustments: { date: string; overridePrice: number; blocked: boolean }[]
 ): Promise<void> {
   try {
-    // For each adjustment, check if an adjustment for the property/date exists.
     for (const adj of adjustments) {
       const response = await databases.listDocuments(
         config.databaseId,
@@ -853,7 +892,6 @@ export async function updatePriceAdjustmentsForProperty(
         [Query.equal("propertyId", propertyId), Query.equal("date", adj.date)]
       );
       if (response.documents.length > 0) {
-        // Update the existing document.
         await databases.updateDocument(
           config.databaseId,
           config.priceAdjustmentsId,
@@ -861,7 +899,6 @@ export async function updatePriceAdjustmentsForProperty(
           { propertyId, date: adj.date, overridePrice: adj.overridePrice, blocked: adj.blocked }
         );
       } else {
-        // Create a new adjustment document.
         await databases.createDocument(
           config.databaseId,
           config.priceAdjustmentsId,
@@ -877,8 +914,9 @@ export async function updatePriceAdjustmentsForProperty(
   }
 }
 
+
 /**
- * New Function: Get price adjustments for a property.
+ * Get price adjustments for a property.
  */
 export async function getPriceAdjustmentsForProperty(propertyId: string): Promise<any[]> {
   try {
@@ -893,5 +931,208 @@ export async function getPriceAdjustmentsForProperty(propertyId: string): Promis
     return [];
   }
 }
-export { ID, Query };
+
+
+export type CancellationPolicy = "Firm" | "Strict" | "Free" | "Non-refundable";
+
+
+export interface BookingRules extends Models.Document {
+  cancellationPolicy: CancellationPolicy;
+  instantBook: boolean;
+  userId: string;
+  propertyId: string;
+  minStay: number;
+  maxStay: number;
+  advanceNotice: number;
+}
+
+
+export interface BookingRulesUpdate {
+  cancellationPolicy: CancellationPolicy;
+  instantBook: boolean;
+  minStay: number;
+  maxStay: number;
+  advanceNotice: number;
+}
+
+
+/**
+ * Create or update booking rules for a property.
+ */
+export async function createOrUpdateBookingRulesForProperty(
+  propertyId: string,
+  data: BookingRulesUpdate,
+  currentUserId: string
+): Promise<BookingRules> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.bookingRulesCollectionId,
+      [Query.equal("propertyId", propertyId)]
+    );
+
+
+    const permissions = [
+      Permission.read(`user:${currentUserId}`),
+      Permission.update(`user:${currentUserId}`),
+      Permission.delete(`user:${currentUserId}`)
+    ];
+
+
+    if (response.documents.length > 0) {
+      const existingDoc = response.documents[0];
+      const updatedDoc = await databases.updateDocument(
+        config.databaseId,
+        config.bookingRulesCollectionId,
+        existingDoc.$id,
+        { propertyId, ...data }
+      );
+      return updatedDoc as BookingRules;
+    } else {
+      const newDoc = await databases.createDocument(
+        config.databaseId,
+        config.bookingRulesCollectionId,
+        ID.unique(),
+        { propertyId, ...data },
+        permissions
+      );
+      return newDoc as BookingRules;
+    }
+  } catch (error) {
+    console.error("❌ Error creating/updating booking rules:", error);
+    throw error;
+  }
+}
+export const getBookingRulesForProperty = async (propertyId: string) => {
+  try {
+    const response = await databases.listDocuments(
+      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID || "",
+      process.env.EXPO_PUBLIC_APPWRITE_BOOKING_RULES_COLLECTION_ID || "",
+      [Query.equal("propertyId", propertyId)]
+    );
+    // If a document exists, return the first one
+    if (response.documents.length > 0) {
+      return response.documents[0];
+    }
+    return null;
+  } catch (error) {
+    console.error("Error fetching booking rules:", error);
+    throw error;
+  }
+};
+
+
+/**
+ * Define an interface for House Rules using the new schema.
+ */
+export interface HouseRules extends Models.Document {
+  propertyId: string;
+  userId: string;
+  checkIn: string;
+  checkOut: string;
+  petsAllowed: boolean;
+  guestsMax: number;
+  smokingAllowed: boolean;
+}
+
+
+export interface HouseRulesUpdate {
+  checkIn: string;
+  checkOut: string;
+  petsAllowed: boolean;
+  guestsMax: number;
+  smokingAllowed: boolean;
+}
+
+
+/**
+ * Fetch house rules for a property.
+ */
+export async function getHouseRulesForProperty(houseRulesId: string): Promise<HouseRules | null> {
+  try {
+    const response = await databases.getDocument(
+      config.databaseId,
+      config.houseRulesCollectionId,
+      houseRulesId
+    );
+    return response as HouseRules;
+  } catch (error) {
+    console.error("❌ Error fetching house rules for property:", error);
+    return null;
+  }
+}
+
+
+/**
+ * Update or create house rules for a property.
+ */
+export async function updateHouseRulesForProperty(
+  propertyId: string,
+  data: HouseRulesUpdate
+): Promise<HouseRules> {
+  try {
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.houseRulesCollectionId,
+      [Query.equal("propertyId", propertyId)]
+    );
+    if (response.documents.length > 0) {
+      const existingDoc = response.documents[0];
+      const updatedDoc = await databases.updateDocument(
+        config.databaseId,
+        config.houseRulesCollectionId,
+        existingDoc.$id,
+        { propertyId, ...data }
+      );
+      return updatedDoc as HouseRules;
+    } else {
+      const newDoc = await databases.createDocument(
+        config.databaseId,
+        config.houseRulesCollectionId,
+        ID.unique(),
+        { propertyId, ...data }
+      );
+      return newDoc as HouseRules;
+    }
+  } catch (error) {
+    console.error("❌ Error updating house rules:", error);
+    throw error;
+  }
+}
+
+
+export const getBookingsByHost = async (hostId: string) => {
+  try {
+    console.log("Fetching bookings for hostId:", hostId);
+   
+    // First try querying by "hostId"
+    let response = await databases.listDocuments(
+      config.databaseId,
+      config.bookingsCollectionId,
+      [Query.equal("hostId", hostId)]
+    );
+    console.log("Response using hostId:", response.documents);
+   
+    // If no bookings found, try using "userId" instead.
+    if (response.documents.length === 0) {
+      console.log('No bookings found using "hostId", trying "userId" instead.');
+      response = await databases.listDocuments(
+        config.databaseId,
+        config.bookingsCollectionId,
+        [Query.equal("userId", hostId)]
+      );
+      console.log("Response using userId:", response.documents);
+    }
+   
+    return response.documents;
+  } catch (error) {
+    console.error("Error fetching bookings by host:", error);
+    throw error;
+  }
+  
+
+};
+
+export { ID, Query, };
+
 

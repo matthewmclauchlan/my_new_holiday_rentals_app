@@ -34,7 +34,8 @@ const HostTabsLayout = () => {
           width: "100%",
           borderTopColor: "#0061FF1A",
           borderTopWidth: 1,
-          minHeight: 70,
+          minHeight: 60,
+          paddingTop: 20, // add some bottom padding
           paddingBottom: 10, // add some bottom padding
         },
       }}
@@ -75,7 +76,7 @@ const HostTabsLayout = () => {
           title: "Listings",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.calendar} title="Listings" />
+            <TabIcon focused={focused} icon={icons.listing} title="Listing" />
           ),
         }}
       />
@@ -95,7 +96,7 @@ const HostTabsLayout = () => {
 
 const styles = StyleSheet.create({
   tabIconContainer: {
-    flex: 1,
+    flex: 7,
     alignItems: "center",
     justifyContent: "center",
     // Shift the icon container downwards within the tab bar:
@@ -106,10 +107,10 @@ const styles = StyleSheet.create({
     height: 28,
   },
   label: {
-    fontSize: 12,
+    fontSize: 10,
     marginTop: 4,
     textAlign: "center",
-    flexWrap: "wrap",
+    flexWrap: "none",
   },
 });
 

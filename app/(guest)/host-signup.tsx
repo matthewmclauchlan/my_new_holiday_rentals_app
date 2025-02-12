@@ -1,4 +1,3 @@
-// app/(guest)/host-signup.tsx
 import React, { useState } from "react";
 import {
   View,
@@ -192,12 +191,13 @@ export default function HostSignupWizard() {
         throw new Error("File URL is empty");
       }
 
-      // Call upsertHostProfile to create or update the host profile with approvalStatus set to "pending".
+      // Call upsertHostProfile to create or update the host profile.
+      // Note: We now pass the uploaded fileUrl as hostDocumentUrl.
       await upsertHostProfile({
         userId: extendedUser.$id,
         fullName,
         phoneNumber: `+${callingCode} ${phone}`,
-        hostDocumentId: fileUrl,
+        hostDocumentUrl: fileUrl,
         termsAccepted: acceptTerms,
       });
 

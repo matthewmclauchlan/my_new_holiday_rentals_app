@@ -8,11 +8,13 @@ import {
   View,
   StyleSheet,
   SafeAreaView,
+  FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useGlobalContext } from "../../global-provider";
 import { getPropertiesByUser } from "@/lib/appwrite";
 import icons from "@/constants/icons";
+import { parse } from "date-fns";
 
 const statusFilters = ["Upcoming", "Current", "Check Out"];
 
@@ -22,6 +24,23 @@ const HostDashboard = () => {
   const [properties, setProperties] = useState<any[]>([]);
   const [loadingProperties, setLoadingProperties] = useState(true);
   const [selectedStatus, setSelectedStatus] = useState("Upcoming");
+
+  // If no user is logged in, show a login prompt.
+  if (!user) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.loginContainer}>
+          <Text style={styles.loginText}>Please log in to view your dashboard.</Text>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={() => router.push("/login")}
+          >
+            <Text style={styles.loginButtonText}>Login</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   // Determine if the user is an approved host.
   const isHost = Boolean(user?.hostProfile?.approvalStatus);
@@ -45,16 +64,150 @@ const HostDashboard = () => {
     fetchProperties();
   }, [user, isHost]);
 
-  // When tapping the Next Stay card, navigate to that property’s profile.
-  const handleNextStayPress = useCallback(() => {
-    if (properties.length > 0) {
-      router.push(`/(host)/propertyProfile/${properties[0].$id}`);
-    }
-  }, [router, properties]);
+  // --- BOOKING AGGREGATION LOGIC ---
 
-  if (!user) {
-    return null;
-  }
+  // Filter properties that have booking info (i.e. guestName and startDate defined)
+  const bookingProperties = properties.filter(
+    (prop) => prop.guestName && prop.startDate
+  );
+
+  // Map each property to include a parsed checkInDate.
+  const bookings = bookingProperties
+    .map((prop) => {
+      let checkInDate;
+      try {
+        // Parse startDate. Ensure the format exactly matches your stored date format.
+        // For example, if the date string is "28/02/2025 00:35:10.881", use the format below:
+        checkInDate = parse(prop.startDate, "dd/MM/yyyy HH:mm:ss.SSS", new Date());
+      } catch (error) {
+        console.error("Error parsing startDate for property", prop.$id, error);
+      }
+      return { ...prop, checkInDate };
+    })
+    .filter((b) => b.checkInDate && !isNaN(b.checkInDate.getTime()));
+
+  // Filter for upcoming bookings (checkInDate in the future)
+  const now = new Date();
+  const upcomingBookings = bookings.filter((b) => b.checkInDate >= now);
+
+  // Sort upcoming bookings by checkInDate (ascending)
+  upcomingBookings.sort((a, b) => a.checkInDate.getTime() - b.checkInDate.getTime());
+
+  // Group bookings that occur on the same day
+  const groupBookingsByDate = (bookingsArray: any[]) => {
+    const groups: { [key: string]: any[] } = {};
+    bookingsArray.forEach((booking) => {
+      const d = booking.checkInDate;
+      // Use year-month-day as the key
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(booking);
+    });
+    return groups;
+  };
+
+  const bookingGroups = groupBookingsByDate(upcomingBookings);
+  const groupKeys = Object.keys(bookingGroups);
+  groupKeys.sort((a, b) => new Date(a).getTime() - new Date(b).getTime());
+
+  // Select the earliest group of bookings as the next stay
+  const nextStayBookings = groupKeys.length > 0 ? bookingGroups[groupKeys[0]] : [];
+
+  // When tapping the Next Stay card (or booking item), navigate to that property's profile.
+  const handleNextStayPress = useCallback(() => {
+    if (nextStayBookings.length > 0) {
+      router.push(`/(host)/propertyProfile/${nextStayBookings[0].$id}`);
+    }
+  }, [router, nextStayBookings]);
+
+  // Render the Next Stay section.
+  const renderNextStay = () => {
+    if (nextStayBookings.length === 0) {
+      return (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Next Stay</Text>
+          <Image
+            source={{ uri: "https://via.placeholder.com/300x200?text=No+Bookings" }}
+            style={styles.placeholderImage}
+            resizeMode="cover"
+          />
+          <Text style={styles.cardText}>No Bookings</Text>
+        </View>
+      );
+    } else if (nextStayBookings.length === 1) {
+      const booking = nextStayBookings[0];
+      return (
+        <TouchableOpacity onPress={handleNextStayPress}>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Next Stay</Text>
+            <Text style={styles.cardText}>Guest: {booking.guestName}</Text>
+            <Text style={styles.cardText}>
+              Property: {booking.name || booking.propertyName || "N/A"}
+            </Text>
+            <Text style={styles.cardText}>
+              Check-in: {booking.startDate || "N/A"}
+            </Text>
+            <Text style={styles.cardText}>
+              Check-out: {booking.checkOut || "N/A"}
+            </Text>
+            <View style={styles.cardFooter}>
+              <TouchableOpacity
+                style={styles.outlinedButton}
+                onPress={() => router.push("/(host)/messages")}
+              >
+                <Text style={styles.outlinedButtonText}>Message Guest</Text>
+              </TouchableOpacity>
+              <View style={styles.statusIndicator}>
+                <Text style={styles.statusText}>
+                  {booking.checkInStatus === "Late" ? "⚠️ Late" : "✔️ On Time"}
+                </Text>
+              </View>
+            </View>
+          </View>
+        </TouchableOpacity>
+      );
+    } else {
+      // Render multiple bookings on the same day in a list.
+      return (
+        <View style={styles.card}>
+          <Text style={styles.cardTitle}>Next Stay</Text>
+          <FlatList
+            data={nextStayBookings}
+            keyExtractor={(item) => item.$id}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                onPress={() =>
+                  router.push(`/(host)/propertyProfile/${item.$id}`)
+                }
+              >
+                <View style={styles.bookingItem}>
+                  <Text style={styles.cardText}>Guest: {item.guestName}</Text>
+                  <Text style={styles.cardText}>
+                    Property: {item.name || item.propertyName || "N/A"}
+                  </Text>
+                  <Text style={styles.cardText}>
+                    Check-in: {item.startDate || "N/A"}
+                  </Text>
+                  <Text style={styles.cardText}>
+                    Check-out: {item.checkOut || "N/A"}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
+            showsVerticalScrollIndicator={false}
+          />
+          <View style={styles.cardFooter}>
+            <TouchableOpacity
+              style={styles.outlinedButton}
+              onPress={() => router.push("/(host)/messages")}
+            >
+              <Text style={styles.outlinedButtonText}>Message Guest</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -102,77 +255,7 @@ const HostDashboard = () => {
           </View>
 
           {/* Next Stay Card */}
-          {properties.length > 0 ? (
-            properties[0]?.guestName ? (
-              // Booking details card if a booking exists
-              <TouchableOpacity onPress={handleNextStayPress}>
-                <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Next Stay</Text>
-                  <Text style={styles.cardText}>
-                    Guest: {properties[0]?.guestName}
-                  </Text>
-                  <Text style={styles.cardText}>
-                    Property:{" "}
-                    {properties[0]?.name || properties[0]?.propertyName || "N/A"}
-                  </Text>
-                  <Text style={styles.cardText}>
-                    Check-in: {properties[0]?.checkIn || "N/A"}
-                  </Text>
-                  <Text style={styles.cardText}>
-                    Check-out: {properties[0]?.checkOut || "N/A"}
-                  </Text>
-                  <View style={styles.cardFooter}>
-                    <TouchableOpacity
-                      style={styles.outlinedButton}
-                      onPress={() => router.push("/(host)/messages")}
-                    >
-                      <Text style={styles.outlinedButtonText}>
-                        Message Guest
-                      </Text>
-                    </TouchableOpacity>
-                    <View style={styles.statusIndicator}>
-                      <Text style={styles.statusText}>
-                        {properties[0]?.checkInStatus === "Late"
-                          ? "⚠️ Late"
-                          : "✔️ On Time"}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ) : (
-              // Placeholder card if there are no bookings for the property
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Next Stay</Text>
-                <Image
-                  source={{
-                    uri:
-                      "https://via.placeholder.com/300x200?text=No+Bookings",
-                  }}
-                  style={styles.placeholderImage}
-                  resizeMode="cover"
-                />
-                <Text style={styles.cardText}>No Bookings</Text>
-              </View>
-            )
-          ) : (
-            // Get Started view when there are no property listings.
-            <View style={styles.getStartedContainer}>
-              <Text style={styles.getStartedTitle}>Get Started</Text>
-              <Text style={styles.getStartedBody}>
-                You have no property listings yet. List your first property to
-                start hosting!
-              </Text>
-              <TouchableOpacity
-                style={styles.listButton}
-                onPress={() => router.push("../property-setup")}
-              >
-                <Text style={styles.listButtonText}>
-                  List Your First Property
-                </Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          {renderNextStay()}
 
           {/* Button to view all bookings */}
           {properties.length > 0 && (
@@ -336,6 +419,35 @@ const styles = StyleSheet.create({
     height: 150,
     marginBottom: 10,
     borderRadius: 10,
+  },
+  bookingItem: {
+    marginBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+    paddingBottom: 10,
+  },
+  // Login styles
+  loginContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  loginText: {
+    fontSize: 18,
+    marginBottom: 20,
+    color: "#333",
+  },
+  loginButton: {
+    backgroundColor: "#70d7c7",
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  loginButtonText: {
+    fontSize: 16,
+    color: "#fff",
+    fontWeight: "bold",
   },
 });
 

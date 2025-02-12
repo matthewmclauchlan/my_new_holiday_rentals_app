@@ -54,6 +54,7 @@ export interface Property {
   vutNumber: string;
   approvalStatus: "pending" | "approved" | "rejected" | "reachout";
   descisionDate: string;
+  hostId: string;
 }
 
 // The structure for a host profile document in your host collection
@@ -68,6 +69,7 @@ export interface HostProfile {
   hostDocumentId: string;
   descisionDate: string;
   termsAccepted: string;
+  hostid: string;
 }
 
 // The structure for a role document in your roles collection
@@ -89,20 +91,18 @@ export interface User {
   roles?: string[];
 }
 
-// Amenity interfaces
+// src/types/amenities.ts
+export enum AmenityTypeEnum {
+  WashingMachine = "washingmachine",
+  CoffeeMachine = "coffeemachine",
+  Garden = "garden",
+  Fridge = "fridge",
+  Towels = "towels",
+  CentralHeating = "centralheating",
+}
+
 export interface Amenity {
   $id: string;
-  name: string;
-  icon: string; // URL or identifier for the icon image
+  name: string;       // e.g. "Washing Machine"
+  icon: string;       // URL or local asset key—for example, using a mapping
 }
-
-export interface AmenitySection {
-  title: string;
-  data: Amenity[];
-}
-
-export interface AmenitySection {
-  title: string;
-  data: Amenity[];
-}
-

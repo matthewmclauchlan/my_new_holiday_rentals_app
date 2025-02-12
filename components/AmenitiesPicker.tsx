@@ -10,12 +10,18 @@ import {
 } from "react-native";
 import { useAppwrite } from "@/lib/useAppwrite";
 import { getAmenities } from "@/lib/appwrite"; // Updated import path!
-import { Amenity, AmenitySection } from "@/lib/types";
+import { Amenity } from "@/lib/types";
 import { groupAmenitiesByFirstLetter } from "@/lib/utils";
+
+// Define the AmenitySection type locally (since it's not exported from "@/lib/types")
+interface AmenitySection {
+  title: string;
+  data: Amenity[];
+}
 
 interface AmenitiesPickerProps {
   selectedAmenities: string[];
-  onToggle: (id: string) => void;
+  onToggle: (amenity: string) => void;
 }
 
 export default function AmenitiesPicker({
@@ -61,9 +67,13 @@ export default function AmenitiesPicker({
       )}
       renderItem={({ item }) => (
         <View style={styles.itemRow}>
-          <TouchableOpacity onPress={() => onToggle(item.$id)} style={styles.checkbox}>
+          {/* 
+            Instead of using item.$id, pass item.name.
+            This ensures that when an amenity is toggled, its name (e.g., "Coffeemachine") is stored.
+          */}
+          <TouchableOpacity onPress={() => onToggle(item.name)} style={styles.checkbox}>
             <Text style={styles.checkboxText}>
-              {selectedAmenities.includes(item.$id) ? "✓" : ""}
+              {selectedAmenities.includes(item.name) ? "✓" : ""}
             </Text>
           </TouchableOpacity>
           <Text style={styles.itemText}>{item.name}</Text>

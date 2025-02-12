@@ -1,271 +1,103 @@
 // components/Cards.tsx
-
 import React from "react";
-import {
-  Image,
-  Text,
-  TouchableOpacity,
-  View,
-  StyleSheet,
-} from "react-native";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from "react-native";
 import { Models } from "react-native-appwrite";
-import icons from "@/constants/icons";
-import images from "@/constants/images";
 
+// Placeholder image in case no images are provided.
 const localPlaceholder = require("../assets/images/japan.png");
 
-// Define the Props interface
+// Get screen width and set card width to 90% of the screen.
+const SCREEN_WIDTH = Dimensions.get("window").width;
+const CARD_WIDTH = SCREEN_WIDTH * 0.8;
+
 interface CardProps {
-  item: Models.Document & { media?: string[] };
+  item: Models.Document & {
+    images?: string[];
+    description?: string;
+    pricePerNight?: number;
+  };
   onPress?: () => void;
 }
 
-/** 
- * FeaturedCard: For your featured section
- */
-export const FeaturedCard: React.FC<CardProps> = React.memo(({ item, onPress }) => {
-  const imageUrl =
-    Array.isArray(item.media) && item.media.length > 0
-      ? { uri: item.media[0] }
-      : localPlaceholder;
-
-  return (
-    <TouchableOpacity
-      onPress={onPress}
-      style={styles.featuredCardContainer}
-      accessibilityLabel={`View details for ${item.name}`}
-    >
-      <Image
-        source={imageUrl}
-        style={styles.featuredImage}
-        defaultSource={localPlaceholder}
-        onError={() =>
-          console.log(`❌ FeaturedCard image failed to load: ${item.media?.[0]}`)
-        }
-      />
-
-      <Image source={images.cardGradient} style={styles.featuredGradient} resizeMode="cover" />
-
-      {item.rating != null && (
-        <View style={styles.ratingBadge}>
-          <Image source={icons.star} style={styles.starIcon} />
-          <Text style={styles.ratingText}>
-            {typeof item.rating === "number" ? item.rating.toFixed(1) : "N/A"}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.featuredDetails}>
-        <Text style={styles.featuredName} numberOfLines={1}>
-          {item.name}
-        </Text>
-        <Text style={styles.featuredAddress} numberOfLines={1}>
-          {item.address}
-        </Text>
-        <View style={styles.featuredPriceHeart}>
-          <Text style={styles.featuredPrice}>${item.pricePerNight}</Text>
-          <Image source={icons.heart} style={styles.heartIcon} tintColor="#fff" />
-        </View>
-      </View>
-    </TouchableOpacity>
-  );
-});
-
 /**
- * Card: Standard property card
+ * Card Component
+ * - The card container is 90% of the screen width and centered.
+ * - The image is displayed as a square (CARD_WIDTH x CARD_WIDTH) with curved corners.
+ * - The property title, description, and price are shown underneath the image.
  */
 export const Card: React.FC<CardProps> = React.memo(({ item, onPress }) => {
-  const imageUrl =
-    Array.isArray(item.media) && item.media.length > 0
-      ? { uri: item.media[0] }
-      : localPlaceholder;
+  let imageUrl = localPlaceholder;
+
+  if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+    try {
+      const parsedImages = item.images.map((imgString: string) => JSON.parse(imgString));
+      // Use the image marked as main; if none, use the first image.
+      const mainImg = parsedImages.find((img: any) => img.isMain) || parsedImages[0];
+      if (mainImg) {
+        imageUrl = { uri: mainImg.remoteUrl || mainImg.localUri };
+      }
+    } catch (error) {
+      console.error("Error parsing images:", error);
+    }
+  }
 
   return (
-    <TouchableOpacity
-      style={styles.cardContainer}
-      onPress={onPress}
-      accessibilityLabel={`View details for ${item.name}`}
-      activeOpacity={0.8}
-    >
-      {item.rating != null && (
-        <View style={styles.ratingBadgeCard}>
-          <Image source={icons.star} style={styles.starIcon} />
-          <Text style={styles.ratingTextCard}>
-            {typeof item.rating === "number" ? item.rating.toFixed(1) : "N/A"}
-          </Text>
-        </View>
-      )}
-
+    <TouchableOpacity style={styles.cardContainer} onPress={onPress} activeOpacity={0.9}>
       <Image
         source={imageUrl}
         style={styles.cardImage}
+        resizeMode="cover"
         defaultSource={localPlaceholder}
-        onError={() =>
-          console.log(`❌ Card image failed to load: ${item.media?.[0]}`)
-        }
+        onError={() => console.log("Error loading image")}
       />
-
-      <View style={styles.cardDetails}>
-        <Text style={styles.cardName} numberOfLines={1}>
+      <View style={styles.cardTextContainer}>
+        <Text style={styles.cardTitle} numberOfLines={1}>
           {item.name}
         </Text>
-        <Text style={styles.cardAddress} numberOfLines={1}>
-          {item.address}
+        <Text style={styles.cardDescription} numberOfLines={2}>
+          {item.description || "No description available"}
         </Text>
-        <View style={styles.cardPriceHeart}>
-          <Text style={styles.cardPrice}>
-            {item.pricePerNight != null ? `$${item.pricePerNight}/night` : "N/A"}
-          </Text>
-          <Image source={icons.heart} style={styles.heartIconCard} tintColor="#191D31" />
-        </View>
+        <Text style={styles.cardPrice}>
+          {item.pricePerNight != null ? `$${item.pricePerNight}/night` : "N/A"}
+        </Text>
       </View>
     </TouchableOpacity>
   );
 });
 
 const styles = StyleSheet.create({
-  featuredCardContainer: {
-    width: 150,
-    height: 220,
-    marginRight: 10,
-    borderRadius: 15,
-    overflow: "hidden",
-    backgroundColor: "#fff",
-  },
-  featuredImage: {
-    width: "100%",
-    height: "70%",
-  },
-  featuredGradient: {
-    position: "absolute",
-    width: "100%",
-    height: "70%",
-    bottom: 0,
-  },
-  ratingBadge: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  starIcon: {
-    width: 14,
-    height: 14,
-    resizeMode: "contain",
-  },
-  ratingText: {
-    marginLeft: 4,
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  featuredDetails: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    right: 10,
-  },
-  featuredName: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  featuredAddress: {
-    fontSize: 12,
-    color: "#fff",
-    marginTop: 2,
-  },
-  featuredPriceHeart: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
-  },
-  featuredPrice: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: "#fff",
-  },
-  heartIcon: {
-    width: 18,
-    height: 18,
-    resizeMode: "contain",
-  },
-
   cardContainer: {
-    flex: 1,
-    marginVertical: 10,
-    marginHorizontal: 5,
-    borderRadius: 15,
+    width: CARD_WIDTH,          // 90% of screen width
+    alignSelf: "center",        // Center the card horizontally
     backgroundColor: "#fff",
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 5 },
-    elevation: 3,
-  },
-  ratingBadgeCard: {
-    position: "absolute",
-    top: 10,
-    right: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(255, 255, 255, 0.8)",
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 12,
-    zIndex: 1,
-  },
-  ratingTextCard: {
-    marginLeft: 4,
-    fontSize: 12,
-    fontWeight: "bold",
-    color: "#333",
+    marginBottom: 20,
+    marginTop: 20,            // Space below the card so the next card peeks in
   },
   cardImage: {
     width: "100%",
-    height: 150,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    resizeMode: "cover",
+    height: CARD_WIDTH,         // Square image
+    borderRadius: 15,
   },
-  cardDetails: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    right: 10,
+  cardTextContainer: {
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
-  cardName: {
-    fontSize: 16,
+  cardTitle: {
+    fontSize: 20,
     fontWeight: "bold",
     color: "#333",
+    marginBottom: 5,
   },
-  cardAddress: {
-    fontSize: 12,
+  cardDescription: {
+    fontSize: 16,
     color: "#666",
-    marginTop: 2,
-  },
-  cardPriceHeart: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginTop: 8,
+    marginBottom: 5,
   },
   cardPrice: {
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "bold",
     color: "#70d7c7",
   },
-  heartIconCard: {
-    width: 18,
-    height: 18,
-    resizeMode: "contain",
-  },
 });
 
-export default Card;
+export default { Card };

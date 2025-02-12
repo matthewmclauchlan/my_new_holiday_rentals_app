@@ -1,4 +1,3 @@
-// components/PricingCalendarBottomSheet.tsx
 import React, { useState, useEffect } from "react";
 import {
   View,
@@ -9,6 +8,8 @@ import {
   ScrollView,
   ViewStyle,
   TextStyle,
+  ActivityIndicator,
+  Linking,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 
@@ -23,14 +24,11 @@ interface DateGroup {
   dates: string[];
 }
 
-// UPDATED: onSave now expects both priceOverrides and blockedDates.
-// New props: initialPriceOverrides and initialBlockedDates are used to pre-populate the calendar.
 export interface PricingCalendarBottomSheetProps {
   year: number;
   month: number;
   priceRules: PriceRules;
   bookedDates?: string[];
-  // New props for initial overrides:
   initialPriceOverrides?: Record<string, number>;
   initialBlockedDates?: string[];
   onSave: (data: { priceOverrides: Record<string, number>; blockedDates: string[] }) => void;
@@ -73,37 +71,25 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
   initialBlockedDates = [],
   onSave,
 }) => {
-  // Initialize state with passed-in initial values.
-  const [priceOverrides, setPriceOverrides] = useState<Record<string, number>>(initialPriceOverrides);
-  const [localBlockedDates, setLocalBlockedDates] = useState<string[]>(initialBlockedDates);
-  
-  // State for user-selected dates (for editing)
+  // Temporary state – these are used only during an override session.
   const [selectedDates, setSelectedDates] = useState<string[]>([]);
-  // Temporary state for override input per group index.
+  const [tempPriceOverrides, setTempPriceOverrides] = useState<Record<string, number>>(initialPriceOverrides);
+  const [tempBlockedDates, setTempBlockedDates] = useState<string[]>(initialBlockedDates);
   const [unsavedOverrides, setUnsavedOverrides] = useState<Record<number, string>>({});
-  // Toggle for marking a group as blocked.
-  const [groupBlocked, setGroupBlocked] = useState<Record<number, boolean>>({});
-  // Control the visibility of the override editing card.
+  // Show override popup if any dates are selected.
   const [showCard, setShowCard] = useState<boolean>(false);
 
-  // Update local state if the initial props change (e.g. when switching properties)
+  // When the override popup is opened, copy persistent blocked dates into temporary state.
   useEffect(() => {
-    setPriceOverrides(initialPriceOverrides);
-  }, [initialPriceOverrides]);
+    setTempPriceOverrides(initialPriceOverrides);
+    setTempBlockedDates(initialBlockedDates);
+  }, [initialPriceOverrides, initialBlockedDates]);
 
   useEffect(() => {
-    setLocalBlockedDates(initialBlockedDates);
-  }, [initialBlockedDates]);
-
-  useEffect(() => {
-    if (selectedDates.length > 0) {
-      setShowCard(true);
-    } else {
-      setShowCard(false);
-    }
+    setShowCard(selectedDates.length > 0);
   }, [selectedDates]);
 
-  // Compute the default price for a given ISO date.
+  // Compute the default price for a given date.
   const computeDefaultPrice = (dateStr: string): number => {
     const dateObj = new Date(dateStr);
     const day = dateObj.getDay();
@@ -112,125 +98,121 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
       : priceRules.basePricePerNight;
   };
 
-  // Called when a day is pressed on the calendar.
-  const onDayPress = (day: {
-    dateString: string;
-    day: number;
-    month: number;
-    year: number;
-  }) => {
+  // Handle day press on calendar.
+  const onDayPress = (day: { dateString: string; day: number; month: number; year: number }) => {
     const ds = day.dateString;
-    // Do nothing if the day is booked or already blocked.
-    if (bookedDates.includes(ds) || localBlockedDates.includes(ds)) return;
+    if (bookedDates.includes(ds)) return; // Do nothing if booked.
+    // Toggle selection (temporary state only).
     if (selectedDates.includes(ds)) {
       setSelectedDates(selectedDates.filter((d) => d !== ds));
-      const newOverrides = { ...priceOverrides };
+      const newOverrides = { ...tempPriceOverrides };
       delete newOverrides[ds];
-      setPriceOverrides(newOverrides);
+      setTempPriceOverrides(newOverrides);
     } else {
       setSelectedDates([...selectedDates, ds]);
-      if (!(ds in priceOverrides)) {
-        setPriceOverrides((prev) => ({
-          ...prev,
-          [ds]: computeDefaultPrice(ds),
-        }));
+      if (!(ds in tempPriceOverrides)) {
+        setTempPriceOverrides((prev) => ({ ...prev, [ds]: computeDefaultPrice(ds) }));
       }
     }
   };
 
-  // Build the markedDates object for the Calendar.
+  // Build markedDates for calendar using temporary state.
   const markedDates: Record<string, any> = {};
 
-  // Process booked dates: mark with a light blue border.
-  const bookedGroups = groupConsecutiveDates(bookedDates);
-  bookedGroups.forEach((group) => {
-    group.dates.forEach((date, index) => {
-      let marking: any = {
+  // Mark booked dates.
+  groupConsecutiveDates(bookedDates).forEach((group) => {
+    group.dates.forEach((date) => {
+      markedDates[date] = {
         disabled: true,
         disableTouchEvent: true,
-        borderColor: "lightblue",
+        backgroundColor: "lightblue",
       };
-      if (index === 0) marking.startingDay = true;
-      if (index === group.dates.length - 1) marking.endingDay = true;
-      markedDates[date] = marking;
     });
   });
 
-  // Process blocked dates from localBlockedDates: mark with a red border.
-  localBlockedDates.forEach((date) => {
-    markedDates[date] = {
-      disabled: true,
-      disableTouchEvent: true,
-      borderColor: "red",
-    };
+  // Mark blocked dates using temporary blocked state.
+  tempBlockedDates.forEach((date) => {
+    // Show red background if not overridden (i.e. not selected).
+    if (!selectedDates.includes(date)) {
+      markedDates[date] = { backgroundColor: "lightcoral" };
+    }
   });
 
-  // Process selected dates: mark with a green border if not booked/blocked.
+  // Mark selected dates.
   selectedDates.forEach((date) => {
-    markedDates[date] = {
-      ...(markedDates[date] || {}),
-      selected: true,
-      selectedColor: "#70d7c7",
-    };
+    // If the date was originally blocked (exists in initialBlockedDates) and has been selected,
+    // show a black border to indicate override.
+    if (initialBlockedDates.includes(date)) {
+      markedDates[date] = {
+        selected: true,
+        backgroundColor: "lightcoral", // remains red
+        borderColor: "black",
+        borderWidth: 2,
+      };
+    } else {
+      markedDates[date] = { selected: true, backgroundColor: "black" };
+    }
   });
 
   // Group selected dates for override editing.
   const groups = groupConsecutiveDates(selectedDates);
 
-  // Compute the price range for a group.
+  // Compute price range for a group.
   const getGroupPriceRange = (group: DateGroup): { min: number; max: number } => {
     const prices = group.dates.map((date) =>
-      priceOverrides[date] !== undefined
-        ? priceOverrides[date]
+      tempPriceOverrides.hasOwnProperty(date)
+        ? tempPriceOverrides[date]
         : computeDefaultPrice(date)
     );
     return { min: Math.min(...prices), max: Math.max(...prices) };
   };
 
-  // Render input fields for each group.
+  // Render override popup inputs.
   const renderGroupInputs = () => {
     return groups.map((group, index) => {
       const committedVal =
-        priceOverrides[group.dates[0]] !== undefined
-          ? priceOverrides[group.dates[0]]
+        tempPriceOverrides[group.dates[0]] !== undefined
+          ? tempPriceOverrides[group.dates[0]]
           : computeDefaultPrice(group.dates[0]);
-      const labelStyle: TextStyle[] = [styles.groupLabel];
-      const inputStyle: TextStyle[] = [styles.groupInput];
-      const summaryTextStyle: TextStyle[] = [styles.groupSummaryText];
-      const rowStyle: ViewStyle[] = [styles.groupRow];
-      if (groupBlocked[index]) {
-        rowStyle.push({ backgroundColor: "black" });
-        labelStyle.push({ color: "white" });
-        inputStyle.push({ color: "white" });
-        summaryTextStyle.push({ color: "white" });
-      }
+      // Determine if the group is currently blocked in the temporary state.
+      const isGroupBlocked = group.dates.every((date) => tempBlockedDates.includes(date));
       return (
-        <View key={group.start} style={rowStyle}>
-          <Text style={labelStyle}>
+        <View
+          key={group.start}
+          style={[
+            styles.groupRow,
+            isGroupBlocked && { backgroundColor: "lightcoral", borderColor: "black", borderWidth: 2 },
+          ]}
+        >
+          <Text style={styles.groupLabel}>
             {group.start === group.end ? group.start : `${group.start} - ${group.end}`}
           </Text>
           <TextInput
-            style={inputStyle}
+            style={styles.groupInput}
             keyboardType="numeric"
             value={unsavedOverrides[index] || ""}
             onChangeText={(text) =>
               setUnsavedOverrides((prev) => ({ ...prev, [index]: text }))
             }
             placeholder={committedVal.toString()}
-            placeholderTextColor={groupBlocked[index] ? "lightgray" : "#ccc"}
+            placeholderTextColor={"#ccc"}
           />
           <TouchableOpacity
             style={styles.toggleButton}
-            onPress={() =>
-              setGroupBlocked((prev) => ({ ...prev, [index]: !prev[index] }))
-            }
+            onPress={() => {
+              if (isGroupBlocked) {
+                // Toggle to "unblock" the group: remove these dates from the temporary blocked state.
+                setTempBlockedDates((prev) => prev.filter((date) => !group.dates.includes(date)));
+              } else {
+                // Toggle to "block" the group: add these dates to the temporary blocked state.
+                setTempBlockedDates((prev) => Array.from(new Set([...prev, ...group.dates])));
+              }
+            }}
           >
-            <Text style={styles.toggleButtonText}>
-              {groupBlocked[index] ? "Unblock" : "Block"}
-            </Text>
+            <Text style={styles.toggleButtonText}>{isGroupBlocked ? "Unblock" : "Block"}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.groupSummary}>
-            <Text style={summaryTextStyle}>
+            <Text style={styles.groupSummaryText}>
               Price:{" "}
               {(() => {
                 const { min, max } = getGroupPriceRange(group);
@@ -243,18 +225,9 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
     });
   };
 
-  // Close the popup and reset state.
-  const onClosePopup = () => {
-    setSelectedDates([]);
-    setUnsavedOverrides({});
-    setGroupBlocked({});
-    setShowCard(false);
-  };
-
-  // When saving, merge unsaved override values and compile blocked dates.
+  // When saving, merge unsaved override values and then commit temporary state.
   const onSaveOverrides = () => {
-    let finalOverrides = { ...priceOverrides };
-    let finalBlockedDates: string[] = [];
+    let finalOverrides = { ...tempPriceOverrides };
     groups.forEach((group, index) => {
       const unsavedValue = unsavedOverrides[index];
       if (unsavedValue && unsavedValue.trim() !== "") {
@@ -265,17 +238,19 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
           });
         }
       }
-      if (groupBlocked[index]) {
-        finalBlockedDates = finalBlockedDates.concat(group.dates);
-      }
     });
-    finalBlockedDates = Array.from(new Set(finalBlockedDates));
-    setPriceOverrides(finalOverrides);
-    onSave({ priceOverrides: finalOverrides, blockedDates: finalBlockedDates });
+    // Call onSave with the final overrides and the temporary blocked dates.
+    onSave({ priceOverrides: finalOverrides, blockedDates: tempBlockedDates });
+    // Clear temporary override state.
     setSelectedDates([]);
     setUnsavedOverrides({});
-    setGroupBlocked({});
-    setShowCard(false);
+  };
+
+  // Optionally, add a cancel handler that resets temporary state to the persistent values.
+  const onCancelOverrides = () => {
+    setSelectedDates([]);
+    setUnsavedOverrides({});
+    setTempBlockedDates(initialBlockedDates);
   };
 
   return (
@@ -294,21 +269,27 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
           date: { dateString: string; day: number; month: number; year: number };
           state: string;
         }) => {
-          const price = priceOverrides.hasOwnProperty(date.dateString)
-            ? priceOverrides[date.dateString]
+          const price = tempPriceOverrides.hasOwnProperty(date.dateString)
+            ? tempPriceOverrides[date.dateString]
             : computeDefaultPrice(date.dateString);
           const isBooked = bookedDates.includes(date.dateString);
-          const isBlocked = localBlockedDates.includes(date.dateString);
+          // Use the temporary blocked state for marking.
+          const isBlocked = tempBlockedDates.includes(date.dateString);
           const isSelected = selectedDates.includes(date.dateString);
           const containerStyle: ViewStyle[] = [styles.dayContainer];
+          const dayTextStyle: TextStyle[] = [styles.dayText];
+          const priceTextStyle: TextStyle[] = [styles.priceText];
+
           if (isBooked) {
-            containerStyle.push({ borderColor: "lightblue" } as ViewStyle);
-          }
-          if (isBlocked) {
-            containerStyle.push({ borderColor: "red" } as ViewStyle);
-          }
-          if (isSelected && !isBooked && !isBlocked) {
-            containerStyle.push({ borderColor: "green" } as ViewStyle);
+            containerStyle.push({ backgroundColor: "lightblue" });
+          } else if (isBlocked && !isSelected) {
+            containerStyle.push({ backgroundColor: "lightcoral" });
+          } else if (isBlocked && isSelected) {
+            containerStyle.push({ backgroundColor: "lightcoral", borderColor: "black", borderWidth: 2 });
+          } else if (isSelected) {
+            containerStyle.push({ backgroundColor: "black" });
+            dayTextStyle.push({ color: "white" });
+            priceTextStyle.push({ color: "white" });
           }
           return (
             <TouchableOpacity
@@ -321,11 +302,11 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
                   year: date.year,
                 })
               }
-              disabled={state === "disabled"}
+              disabled={isBooked}
             >
-              <Text style={styles.dayText}>{date.day}</Text>
-              <Text style={styles.priceText}>${price}</Text>
-              {isBlocked && <Text style={styles.blockLabel}>Blocked</Text>}
+              <Text style={dayTextStyle}>{date.day}</Text>
+              <Text style={priceTextStyle}>${price}</Text>
+              {isBlocked && !isSelected && <Text style={styles.blockLabel}>Blocked</Text>}
             </TouchableOpacity>
           );
         }}
@@ -339,10 +320,10 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
         }}
       />
 
-      {showCard && groups.length > 0 && (
+      {selectedDates.length > 0 && groups.length > 0 && (
         <View style={styles.card}>
           <View style={styles.cardHeader}>
-            <TouchableOpacity onPress={onClosePopup}>
+            <TouchableOpacity onPress={onCancelOverrides}>
               <Text style={styles.crossButton}>X</Text>
             </TouchableOpacity>
             <Text style={styles.sheetTitle}>Edit Price Overrides</Text>
@@ -350,9 +331,7 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
               <Text style={styles.clearButton}>Clear All Inputs</Text>
             </TouchableOpacity>
           </View>
-
           {renderGroupInputs()}
-
           <TouchableOpacity style={styles.saveButton} onPress={onSaveOverrides}>
             <Text style={styles.saveButtonText}>Save Overrides</Text>
           </TouchableOpacity>
@@ -363,9 +342,7 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   calendar: {
     borderWidth: 1,
     borderColor: "#ccc",
@@ -381,16 +358,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#ccc",
   },
-  dayText: {
-    fontSize: 14,
-  },
-  priceText: {
-    fontSize: 10,
-  },
-  blockLabel: {
-    fontSize: 8,
-    color: "orange",
-  },
+  dayText: { fontSize: 14 },
+  priceText: { fontSize: 10 },
+  blockLabel: { fontSize: 8, color: "orange" },
   card: {
     backgroundColor: "#fff",
     padding: 20,
@@ -405,30 +375,16 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     marginBottom: 10,
   },
-  crossButton: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "red",
-  },
-  sheetTitle: {
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  clearButton: {
-    fontSize: 14,
-    color: "#70d7c7",
-  },
+  crossButton: { fontSize: 18, fontWeight: "bold", color: "red" },
+  sheetTitle: { fontSize: 18, fontWeight: "bold" },
+  clearButton: { fontSize: 14, color: "#70d7c7" },
   groupRow: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 10,
     padding: 5,
   },
-  groupLabel: {
-    flex: 2,
-    fontSize: 14,
-    color: "#333",
-  },
+  groupLabel: { flex: 2, fontSize: 14, color: "#333" },
   groupInput: {
     flex: 2,
     borderWidth: 1,
@@ -444,10 +400,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     alignItems: "center",
   },
-  groupSummaryText: {
-    fontSize: 14,
-    color: "#333",
-  },
+  groupSummaryText: { fontSize: 14, color: "#333" },
   toggleButton: {
     flex: 1,
     padding: 5,
@@ -456,10 +409,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginLeft: 5,
   },
-  toggleButtonText: {
-    fontSize: 12,
-    color: "#333",
-  },
+  toggleButtonText: { fontSize: 12, color: "#333" },
   saveButton: {
     backgroundColor: "#70d7c7",
     paddingVertical: 12,
@@ -467,11 +417,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 20,
   },
-  saveButtonText: {
-    color: "#fff",
+  saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  modalContent: { padding: 20 },
+  sheetTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
+  inputRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
+  inputLabel: { width: 130, fontSize: 16, color: "#333" },
+  inputField: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
     fontSize: 16,
-    fontWeight: "bold",
   },
+  // Cancellation Policy Modal styles:
+  cancellationModalContent: { padding: 20, paddingBottom: 80 },
+  cancellationSaveContainer: { padding: 20, borderTopWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
+  policyCard: { borderWidth: 1, borderColor: "#ccc", padding: 12, marginBottom: 10, borderRadius: 8 },
+  selectedPolicyCard: { borderColor: "#70d7c7", backgroundColor: "#e6f7ff" },
+  policyTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
+  policyDescription: { fontSize: 14, color: "#555" },
+  policyLink: { color: "#70d7c7", textDecorationLine: "underline", marginTop: 5 },
 });
 
 export default PricingCalendarBottomSheet;

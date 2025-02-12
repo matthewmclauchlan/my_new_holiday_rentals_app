@@ -13,14 +13,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
-import Search from "@/components/Search";
 import Filters from "@/components/Filters";
 import NoResults from "@/components/NoResults";
-import { Card, FeaturedCard } from "@/components/Cards";
+import { Card } from "@/components/Cards";
 
 import { useAppwrite } from "@/lib/useAppwrite";
 import { useGlobalContext } from "../../global-provider";
-import { getLatestProperties, getProperties } from "@/lib/appwrite";
+import { getProperties } from "@/lib/appwrite";
 import { FilterOptions } from "@/lib/types";
 import { Models } from "react-native-appwrite";
 import { useDebounce } from "@/hooks/useDebounce";
@@ -43,18 +42,10 @@ const Home = () => {
     endDate: null,
   });
 
-  // Debounce the filters to prevent rapid state updates
+  // Debounce filters to avoid too frequent refetches.
   const debouncedFilters = useDebounce(filters, 300);
 
-  // Fetch featured properties (e.g. properties available for booking)
-  const { data: latestProperties, loading: latestPropertiesLoading } =
-    useAppwrite<Models.Document[] | null, Record<string, string | number>>({
-      fn: getLatestProperties,
-      params: {},
-      skip: false,
-    });
-
-  // Fetch properties based on debounced filters
+  // Fetch properties based on debounced filters.
   const {
     data: properties,
     refetch,
@@ -67,14 +58,14 @@ const Home = () => {
         query: params.query || "",
         limit: 6,
       },
-      skip: true,
+      skip: false,
     }
   );
 
-  // Trigger a refetch when debounced filters change.
+  // Refetch when filters or query change.
   useEffect(() => {
     if (debouncedFilters) {
-      console.log("🔍 Refetching with Filters:", debouncedFilters);
+      console.log("Refetching with Filters:", debouncedFilters);
       refetch({
         filter: JSON.stringify(debouncedFilters),
         query: params.query || "",
@@ -85,19 +76,37 @@ const Home = () => {
 
   // Handler for when filters change.
   const handleFilterChange = useCallback((newFilters: FilterOptions) => {
-    setFilters((prevFilters) => {
-      if (JSON.stringify(prevFilters) !== JSON.stringify(newFilters)) {
-        return newFilters;
-      }
-      return prevFilters;
-    });
+    setFilters(newFilters);
   }, []);
 
   // When a property card is pressed, navigate to the guest property detail page.
-  // The URL always gets the query parameter `view=guest` so the detail page renders in read‑only mode.
   const handleCardPress = useCallback((id: string) => {
     router.push(`/properties/${id}?view=guest`);
   }, [router]);
+
+  // Render the header containing the custom search bar and filters.
+  const renderHeader = () => (
+    <View style={styles.headerContainer}>
+      {/* Custom Search Bar Button */}
+      <TouchableOpacity
+        style={styles.searchBar}
+        onPress={() => router.push("/search")}
+      >
+        <Text style={styles.searchBarText}>Start your search</Text>
+        <View style={styles.searchIconContainer}>
+          <Image source={require("@/assets/icons/search.png")} style={styles.searchIcon} />
+        </View>
+      </TouchableOpacity>
+
+      {/* Filters */}
+      <View style={styles.filtersContainer}>
+        <Filters onFilterChange={handleFilterChange} />
+      </View>
+
+      {/* A small spacer to push the first card down a bit */}
+      <View style={styles.headerSpacer} />
+    </View>
+  );
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -107,63 +116,12 @@ const Home = () => {
           <Card item={item} onPress={() => handleCardPress(item.$id)} />
         )}
         keyExtractor={(item) => item.$id}
-        ListHeaderComponent={
-          <>
-            {/* User Greeting and Bell Icon */}
-            <View style={styles.userSection}>
-              <View style={styles.userInfo}>
-                <Image
-                  source={{ uri: user?.avatar || "https://via.placeholder.com/100" }}
-                  style={styles.userAvatar}
-                />
-                <View style={styles.userText}>
-                  <Text style={styles.greetingText}>Good Morning</Text>
-                  <Text style={styles.userNameText}>{user?.name || "Guest"}</Text>
-                </View>
-              </View>
-              <TouchableOpacity>
-                <Image source={icons.bell} style={styles.bellIcon} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Bar */}
-            <Search />
-
-            {/* Featured Section */}
-            <View style={styles.featuredSection}>
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>Featured</Text>
-                <TouchableOpacity>
-                  <Text style={styles.seeAllText}>See all</Text>
-                </TouchableOpacity>
-              </View>
-
-              {latestPropertiesLoading ? (
-                <ActivityIndicator size="large" color="#70d7c7" style={styles.loader} />
-              ) : latestProperties && latestProperties.length > 0 ? (
-                <FlatList
-                  data={latestProperties}
-                  renderItem={({ item }) => (
-                    <FeaturedCard item={item} onPress={() => handleCardPress(item.$id)} />
-                  )}
-                  keyExtractor={(item) => item.$id}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.featuredList}
-                />
-              ) : (
-                <NoResults message="No featured properties available." />
-              )}
-            </View>
-
-            {/* Filters */}
-            <Filters onFilterChange={handleFilterChange} />
-          </>
+        ListHeaderComponent={renderHeader}
+        stickyHeaderIndices={[0]} // Makes the header stationary.
+        ListEmptyComponent={
+          loading ? null : <NoResults message="No properties match your filters." />
         }
-        ListEmptyComponent={loading ? null : <NoResults message="No properties match your filters." />}
         contentContainerStyle={styles.flatListContent}
-        numColumns={2}
-        columnWrapperStyle={styles.columnWrapper}
         showsVerticalScrollIndicator={false}
       />
     </SafeAreaView>
@@ -177,69 +135,47 @@ const styles = StyleSheet.create({
   },
   flatListContent: {
     paddingBottom: 32,
-    paddingHorizontal: 20,
     backgroundColor: "#fff",
   },
-  userSection: {
+  headerContainer: {
+    backgroundColor: "#fff",
+    paddingHorizontal: 20,
+    width: "100%",
+    borderBottomWidth: 1,
+    borderBottomColor: "#ccc",
+    paddingTop: 5, // Reduced top padding
+    paddingBottom: 5, // Reduced bottom padding
+  },
+  searchBar: {
+    marginTop: 0, // Reduced margin
+    backgroundColor: "#f2f2f2",
+    borderRadius: 25,
+    paddingVertical: 10, // Reduced vertical padding
+    paddingHorizontal: 20,
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 20,
+    justifyContent: "center",
   },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  userAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    resizeMode: "cover",
-  },
-  userText: {
-    marginLeft: 10,
-  },
-  greetingText: {
-    fontSize: 14,
-    color: "#555",
-  },
-  userNameText: {
+  searchBarText: {
+    flex: 1,
+    textAlign: "center",
     fontSize: 16,
-    fontWeight: "bold",
-    color: "#333",
+    color: "#888",
   },
-  bellIcon: {
-    width: 24,
-    height: 24,
-    resizeMode: "contain",
+  searchIconContainer: {
+    position: "absolute",
+    right: 20,
   },
-  featuredSection: {
-    marginTop: 20,
+  searchIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "#70d7c7",
   },
-  sectionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  filtersContainer: {
+    paddingVertical: 10, // Reduced vertical padding for the filter section
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  seeAllText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#70d7c7",
-  },
-  loader: {
-    marginTop: 20,
-  },
-  featuredList: {
-    marginTop: 10,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-    marginBottom: 20,
+  headerSpacer: {
+    height: 10, // Spacer to push the first card down a bit
   },
 });
 

@@ -14,7 +14,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Constants from "expo-constants";
 
-import icons from "@/constants/icons";
 import Comment from "@/components/Comment";
 import { facilities } from "@/constants/data";
 import { useAppwrite } from "@/lib/useAppwrite";
@@ -22,7 +21,8 @@ import { getPropertyById } from "@/lib/appwrite";
 import BookingFlowSheet, { BookingFlowSheetRef } from "@/components/BookingFlowSheet";
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get("window");
-const IMAGE_SLIDER_HEIGHT = windowHeight / 3; // top third for images
+// Set the image slider height to 1/3 of the screen
+const IMAGE_SLIDER_HEIGHT = windowHeight / 3;
 
 // --- Helper Functions ---
 
@@ -130,46 +130,82 @@ const Property = () => {
     ? getLowestPriceDateRange(property.dailyPrices)
     : formatDateRange();
 
+  // Mapping for display-friendly amenity names.
+  const amenityDisplayNames: Record<string, string> = {
+    "Coffeemachine": "Coffee Machine",
+    "garden": "Garden",
+    "centralheating": "Central Heating",
+    "towels": "Towels",
+    "fridge": "Fridge",
+  };
+
+  // Mapping for amenity icons (adjust the paths and keys as needed)
+  const amenityIconMapping: Record<string, any> = {
+    "Coffeemachine": require("../../assets/icons/coffee_machine.png"),
+    "garden": require("../../assets/icons/garden (1).png"),
+    "centralheating": require("../../assets/icons/central_heating.png"),
+    "towels": require("../../assets/icons/towels.png"),
+    "fridge": require("../../assets/icons/refrigerator.png"),
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="light-content" />
-      {/* Header Overlay */}
+
+      {/* Image Slider: Takes up 1/3 of the screen */}
+      <View style={styles.imageSliderContainer}>
+        <FlatList
+          data={property.media || []}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item, index) => index.toString()}
+          onViewableItemsChanged={onViewableItemsChanged.current}
+          viewabilityConfig={viewabilityConfig.current}
+          renderItem={({ item }) => (
+            <Image
+              source={{ uri: item }}
+              style={styles.propertyImage}
+              resizeMode="cover"
+            />
+          )}
+        />
+        <View style={styles.imageCountOverlay}>
+          <Text style={styles.imageCountText}>
+            {currentImageIndex + 1}/{property.media?.length || 0}
+          </Text>
+        </View>
+      </View>
+
+      {/* Header Overlay (positioned over the image slider) */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.headerIconLeft} onPress={() => router.back()}>
-          <Image source={icons.backArrow} style={styles.icon} />
+          <Image
+            source={require("../../assets/icons/cross.png")}
+            style={styles.icon}
+          />
         </TouchableOpacity>
         <View style={styles.headerIconsRight}>
           <TouchableOpacity style={styles.headerIcon}>
-            <Image source={icons.share} style={styles.icon} />
+            <Image
+              source={require("../../assets/icons/share.png")}
+              style={styles.icon}
+            />
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerIcon}>
-            <Image source={icons.heart} style={styles.icon} />
+            <Image
+              source={require("../../assets/icons/heart.png")}
+              style={styles.icon}
+            />
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        {/* Image Slider */}
-        <View style={styles.imageSliderContainer}>
-          <FlatList
-            data={property.media || []}
-            horizontal
-            pagingEnabled
-            showsHorizontalScrollIndicator={false}
-            keyExtractor={(item, index) => index.toString()}
-            onViewableItemsChanged={onViewableItemsChanged.current}
-            viewabilityConfig={viewabilityConfig.current}
-            renderItem={({ item }) => (
-              <Image source={{ uri: item }} style={styles.propertyImage} resizeMode="cover" />
-            )}
-          />
-          <View style={styles.imageCountOverlay}>
-            <Text style={styles.imageCountText}>
-              {currentImageIndex + 1}/{property.media?.length || 0}
-            </Text>
-          </View>
-        </View>
-
+      {/* Scrollable Content – content scrolls behind the image slider */}
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: IMAGE_SLIDER_HEIGHT }]}
+      >
         {/* Property Basic Info */}
         <View style={styles.infoContainer}>
           <Text style={styles.propertyTitle}>{property.name || "No name available"}</Text>
@@ -194,7 +230,17 @@ const Property = () => {
               {(showAllAmenities ? property.amenities : property.amenities.slice(0, 5)).map(
                 (amenity: string, index: number) => (
                   <View key={index} style={styles.amenityItem}>
-                    <Text style={styles.amenityText}>{amenity}</Text>
+                    {/* Render the amenity icon if available */}
+                    {amenityIconMapping[amenity] && (
+                      <Image
+                        source={amenityIconMapping[amenity]}
+                        style={styles.amenityIcon}
+                        resizeMode="contain"
+                      />
+                    )}
+                    <Text style={styles.amenityText}>
+                      {amenityDisplayNames[amenity] || amenity}
+                    </Text>
                   </View>
                 )
               )}
@@ -273,7 +319,7 @@ const Property = () => {
         <View style={{ height: 100 }} />
       </ScrollView>
 
-      {/* Bottom Bar */}
+      {/* Bottom Bar – fixed above scroll content */}
       <View style={styles.bottomBar}>
         <View style={styles.priceContainer}>
           <Text style={styles.priceLabel}>Lowest Price Dates</Text>
@@ -301,14 +347,43 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
+    zIndex: 1,
   },
+  // Scroll content now uses paddingTop so it scrolls under the image slider.
   scrollContent: {
-    paddingBottom: 140, // leave space for bottom bar
+    paddingBottom: 140,
+    paddingTop: 0,
   },
   center: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
+  },
+  // Image Slider Container with a higher z-index so it remains on top.
+  imageSliderContainer: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: IMAGE_SLIDER_HEIGHT,
+    zIndex: 2,
+  },
+  propertyImage: {
+    width: windowWidth,
+    height: IMAGE_SLIDER_HEIGHT,
+  },
+  imageCountOverlay: {
+    position: "absolute",
+    bottom: 10,
+    left: 10,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+  },
+  imageCountText: {
+    color: "#fff",
+    fontSize: 14,
   },
   // Header Overlay
   header: {
@@ -319,7 +394,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingHorizontal: 15,
-    zIndex: 10,
+    zIndex: 3,
   },
   headerIconLeft: {
     backgroundColor: "rgba(0,0,0,0.6)",
@@ -339,28 +414,6 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     tintColor: "#fff",
-  },
-  // Image Slider
-  imageSliderContainer: {
-    height: IMAGE_SLIDER_HEIGHT,
-    position: "relative",
-  },
-  propertyImage: {
-    width: windowWidth,
-    height: IMAGE_SLIDER_HEIGHT,
-  },
-  imageCountOverlay: {
-    position: "absolute",
-    bottom: 10,
-    left: 10,
-    backgroundColor: "rgba(0,0,0,0.6)",
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-  },
-  imageCountText: {
-    color: "#fff",
-    fontSize: 14,
   },
   // Basic Property Info
   infoContainer: {
@@ -385,17 +438,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#555",
   },
-  // Card container used for several sections
+  // Card container – removed horizontal margins for edge-to-edge cards.
   card: {
     backgroundColor: "#fff",
-    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
     padding: 15,
-    marginHorizontal: 16,
+    marginHorizontal: 0,
     marginBottom: 16,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
+    borderRadius: 0,
   },
   sectionTitle: {
     fontSize: 18,
@@ -413,11 +464,18 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
   },
   amenityItem: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#f2f2f2",
     borderRadius: 5,
     padding: 8,
     marginRight: 8,
     marginBottom: 8,
+  },
+  amenityIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 4,
   },
   amenityText: {
     fontSize: 14,
@@ -500,7 +558,7 @@ const styles = StyleSheet.create({
     color: "#444",
     marginBottom: 4,
   },
-  // Bottom Bar
+  // Bottom Bar – fixed above scroll content
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -514,6 +572,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     alignItems: "center",
+    zIndex: 10,
+    elevation: 5,
   },
   priceContainer: {
     flexDirection: "column",

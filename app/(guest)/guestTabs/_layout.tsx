@@ -51,8 +51,8 @@ const GuestTabsLayout = () => {
           width: "100%",
           borderTopColor: "#0061FF1A",
           borderTopWidth: 1,
-          minHeight: 80, // Increased height for more space
-          paddingTop: 10,
+          minHeight: 60, // Increased height for more space
+          paddingTop: 20,
           paddingBottom: 10,
         },
       }}
@@ -93,7 +93,7 @@ const GuestTabsLayout = () => {
 
 const styles = StyleSheet.create({
   tabIconContainer: {
-    flex: 5,
+    flex: 7,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -1,5 +1,4 @@
 // app/(host)/property-setup.tsx
-
 import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
@@ -14,21 +13,27 @@ import {
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useRouter } from "expo-router";
-import { createProperty, getAmenities, getHouseRules } from "@/lib/appwrite";
+import { createProperty, getHouseRules } from "@/lib/appwrite"; // using getHouseRules (a callable function)
 import AmenitiesPicker from "@/components/AmenitiesPicker";
 import BottomSheetPicker from "@/components/BottomSheetPicker";
 import { useGlobalContext } from "../global-provider";
-import { Amenity } from "@/lib/types"; // Ensure your Amenity interface is defined
+import { AmenityTypeEnum } from "../../lib/types"; // Use the imported enum
 
-// Define the wizard steps. We add an "ADDITIONAL" step for catastro and vutNumber.
-enum WizardStep {
-  BASIC_INFO = 0,
-  LOCATION = 1,
-  DETAILS = 2,
-  ADDITIONAL = 3, // New step for additional info
-  AMENITIES = 4,
-  REVIEW = 5,
-}
+// Note: The local enum declaration for AmenityTypeEnum was removed to avoid duplicate declarations.
+
+// Initial form values with selectedAmenities typed as an array of string IDs.
+const initialValues = {
+  name: "",
+  propertyType: "Apartment",
+  description: "",
+  address: "",
+  bedrooms: "",
+  bathrooms: "",
+  area: "",
+  catastro: "",
+  vutNumber: "",
+  selectedAmenities: [] as string[],
+};
 
 const propertyTypes = [
   "House",
@@ -48,22 +53,6 @@ const propertyTypes = [
   "Other",
 ];
 
-// Initial form values (all values are strings as entered by the user)
-const initialValues = {
-  name: "",
-  propertyType: "Apartment",
-  description: "",
-  address: "",
-  bedrooms: "",
-  bathrooms: "",
-  area: "",
-  // New additional fields:
-  catastro: "",
-  vutNumber: "",
-  selectedAmenities: [] as string[],
-};
-
-// Validation schemas for each step.
 const validationSchemas = [
   // Step 1: Basic Info
   Yup.object().shape({
@@ -109,24 +98,15 @@ const validationSchemas = [
 
 export default function PropertySetupWizard() {
   const router = useRouter();
-  const [step, setStep] = useState<WizardStep>(WizardStep.BASIC_INFO);
-  const [amenitiesData, setAmenitiesData] = useState<Amenity[]>([]);
+  const [step, setStep] = useState(0);
   const [houseRulesData, setHouseRulesData] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch amenities and house rules on mount.
+  // Fetch house rules on component mount.
   useEffect(() => {
     (async () => {
       try {
-        const fetchedAmenities = await getAmenities();
-        console.log("Fetched amenities:", fetchedAmenities);
-        setAmenitiesData(fetchedAmenities);
-      } catch (err) {
-        console.error("Error fetching amenities:", err);
-      }
-      try {
         const fetchedHouseRules = await getHouseRules();
-        console.log("Fetched house rules:", fetchedHouseRules);
         setHouseRulesData(fetchedHouseRules);
       } catch (err) {
         console.error("Error fetching house rules:", err);
@@ -142,10 +122,22 @@ export default function PropertySetupWizard() {
       return;
     }
     setIsSubmitting(true);
-    console.log("Submitting property with values:", values);
     try {
-      // Create the property using the provided values.
-      const property = await createProperty({
+      // Mapping: Convert the selected names (normalized to lowercase) to the allowed values.
+      // Allowed values: Coffeemachine, garden, centralheating, towels, fridge
+      const allowedAmenitiesMapping: Record<string, string> = {
+        "coffeemachine": "Coffeemachine",
+        "garden": "garden",
+        "centralheating": "centralheating",
+        "towels": "towels",
+        "fridge": "fridge",
+      };
+  
+      const mappedAmenities = values.selectedAmenities
+        .map((amenity) => allowedAmenitiesMapping[amenity.toLowerCase()])
+        .filter((amenity) => amenity !== undefined);
+  
+      await createProperty({
         name: values.name,
         type: values.propertyType as any,
         description: values.description,
@@ -154,7 +146,8 @@ export default function PropertySetupWizard() {
         bathrooms: Number(values.bathrooms),
         rating: "5",
         area: Number(values.area),
-        amenities: values.selectedAmenities, // List of amenity IDs.
+        // Pass the mapped amenity values (which should now be in the allowed format).
+        amenities: mappedAmenities,
         houseRulesId: "", // Not implemented in this example.
         isFeatured: false,
         pricePerNight: 120,
@@ -165,20 +158,20 @@ export default function PropertySetupWizard() {
         catastro: values.catastro,
         vutNumber: values.vutNumber,
       });
-      console.log("Property successfully created:", property);
       Alert.alert("Success", "Property created successfully");
       router.replace("../(host)/hostTabs");
     } catch (error: any) {
-      console.error("Submission error:", error);
       Alert.alert("Error", error.message || "Failed to create property");
     } finally {
       setIsSubmitting(false);
     }
   };
+  
+  
 
   const renderStepContent = (formikProps: any) => {
     switch (step) {
-      case WizardStep.BASIC_INFO:
+      case 0:
         return (
           <View>
             <Text style={styles.stepTitle}>Basic Info</Text>
@@ -191,9 +184,6 @@ export default function PropertySetupWizard() {
               maxLength={100}
               placeholder="Enter property title"
             />
-            <Text style={styles.charCount}>
-              {formikProps.values.name.length} / 100
-            </Text>
             <BottomSheetPicker
               label="Property Type"
               selectedValue={formikProps.values.propertyType}
@@ -212,12 +202,9 @@ export default function PropertySetupWizard() {
               multiline
               placeholder="Enter a short description"
             />
-            <Text style={styles.charCount}>
-              {formikProps.values.description.length} / 300
-            </Text>
           </View>
         );
-      case WizardStep.LOCATION:
+      case 1:
         return (
           <View>
             <Text style={styles.stepTitle}>Location</Text>
@@ -231,7 +218,7 @@ export default function PropertySetupWizard() {
             />
           </View>
         );
-      case WizardStep.DETAILS:
+      case 2:
         return (
           <View>
             <Text style={styles.stepTitle}>Details</Text>
@@ -261,7 +248,7 @@ export default function PropertySetupWizard() {
             />
           </View>
         );
-      case WizardStep.ADDITIONAL:
+      case 3:
         return (
           <View>
             <Text style={styles.stepTitle}>Additional Information</Text>
@@ -283,27 +270,31 @@ export default function PropertySetupWizard() {
             />
           </View>
         );
-      case WizardStep.AMENITIES:
+      case 4:
         return (
           <View>
             <Text style={styles.stepTitle}>Select Amenities</Text>
+            {/* Removed the options prop because AmenitiesPicker fetches data internally */}
             <AmenitiesPicker
               selectedAmenities={formikProps.values.selectedAmenities}
-              onToggle={(id: string) => {
+              onToggle={(value: string) => {
                 const current = formikProps.values.selectedAmenities;
-                if (current.includes(id)) {
+                if (current.includes(value)) {
                   formikProps.setFieldValue(
                     "selectedAmenities",
-                    current.filter((item: string) => item !== id)
+                    current.filter((item: string) => item !== value)
                   );
                 } else {
-                  formikProps.setFieldValue("selectedAmenities", [...current, id]);
+                  formikProps.setFieldValue("selectedAmenities", [
+                    ...current,
+                    value,
+                  ]);
                 }
               }}
             />
           </View>
         );
-      case WizardStep.REVIEW:
+      case 5:
         return (
           <View>
             <Text style={styles.stepTitle}>Review & Submit</Text>
@@ -329,7 +320,7 @@ export default function PropertySetupWizard() {
     }
   };
 
-  const isFinalStep = step === WizardStep.REVIEW;
+  const isFinalStep = step === 5;
 
   return (
     <Formik
@@ -342,7 +333,7 @@ export default function PropertySetupWizard() {
           <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 20 }}>
             {renderStepContent(formikProps)}
             <View style={styles.navRow}>
-              {step > WizardStep.BASIC_INFO && (
+              {step > 0 && (
                 <Button title="Back" onPress={() => setStep(step - 1)} color="#999" />
               )}
               {!isFinalStep ? (
@@ -383,141 +374,10 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   multilineInput: { height: 80, textAlignVertical: "top" },
-  charCount: { textAlign: "right", marginBottom: 10, color: "#666" },
   navRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     marginTop: 20,
   },
   info: { fontSize: 14, color: "#333", marginBottom: 5 },
-  getStartedContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 40,
-  },
-  getStartedTitle: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 20,
-    color: "#333",
-    textAlign: "center",
-  },
-  getStartedBody: {
-    fontSize: 16,
-    color: "#555",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-  listButton: {
-    backgroundColor: "#70d7c7",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-  },
-  listButtonText: {
-    fontSize: 16,
-    color: "#fff",
-    fontWeight: "bold",
-  },
-  header: {
-    marginTop: 20,
-    marginBottom: 20,
-    alignItems: "center",
-  },
-  userInfo: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  avatar: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-  },
-  userText: {
-    marginLeft: 10,
-  },
-  greeting: {
-    fontSize: 14,
-    color: "#555",
-  },
-  userName: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  filterContainer: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    marginBottom: 20,
-  },
-  filterButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: "#e0e0e0",
-    borderRadius: 20,
-  },
-  activeFilterButton: {
-    backgroundColor: "#0061FF",
-  },
-  filterButtonText: {
-    fontSize: 16,
-    color: "#333",
-  },
-  activeFilterButtonText: {
-    color: "#fff",
-  },
-  card: {
-    backgroundColor: "rgba(255,255,255,0.8)",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    padding: 20,
-    marginBottom: 20,
-  },
-  cardTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-    color: "#333",
-  },
-  cardText: {
-    fontSize: 16,
-    marginBottom: 5,
-    color: "#555",
-  },
-  cardFooter: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
-  },
-  outlinedButton: {
-    borderWidth: 1,
-    borderColor: "#0061FF",
-    borderRadius: 5,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-  },
-  outlinedButtonText: {
-    fontSize: 16,
-    color: "#0061FF",
-  },
-  statusIndicator: {
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  statusText: {
-    fontSize: 16,
-    color: "#d32f2f",
-  },
-  noResults: {
-    fontSize: 16,
-    color: "#999",
-    textAlign: "center",
-    marginVertical: 20,
-  },
-  columnWrapper: {
-    justifyContent: "space-between",
-    marginBottom: 20,
-  },
 });

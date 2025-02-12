@@ -1,5 +1,6 @@
 // app/(host)/hostTabs/hostCalendarPage.tsx
-import React, { useState, useEffect, useRef } from "react";
+
+import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   View,
   Text,
@@ -33,9 +34,9 @@ interface PricingData {
     basePricePerNight: number;
     basePricePerNightWeekend: number;
   };
-  bookedDates: string[];       // From bookings
+  bookedDates: string[]; // From bookings
   priceOverrides: Record<string, number>; // Merged adjustments from PriceAdjustments collection (normalized)
-  blockedDates: string[];      // Normalized blocked dates
+  blockedDates: string[]; // Normalized blocked dates
 }
 
 // Helper to generate an array of dates (YYYY-MM-DD) between two dates (inclusive)
@@ -148,6 +149,20 @@ const HostCalendarPage: React.FC = () => {
     setLoading(false);
   };
 
+  // Memoize the onSave callback to ensure its reference is stable.
+  const onSaveOverridesCallback = useCallback(
+    (data: { priceOverrides: Record<string, number>; blockedDates: string[] }) => {
+      console.log("onSave callback received data:", data);
+      if (selectedProperty) {
+        handleSaveAdjustments(selectedProperty, data.priceOverrides, data.blockedDates);
+      }
+    },
+    [selectedProperty]
+  );
+
+  // Memoize PricingCalendarBottomSheet to avoid unnecessary re-renders.
+  const MemoizedPricingCalendarBottomSheet = memo(PricingCalendarBottomSheet);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Select a Property:</Text>
@@ -174,18 +189,14 @@ const HostCalendarPage: React.FC = () => {
           </TouchableOpacity>
         </View>
         {pricingData && pricingData.priceRules && (
-          <PricingCalendarBottomSheet
+          <MemoizedPricingCalendarBottomSheet
             year={2025}
             month={1}
             priceRules={pricingData.priceRules}
             bookedDates={pricingData.bookedDates}
             initialPriceOverrides={pricingData.priceOverrides}
             initialBlockedDates={pricingData.blockedDates}
-            onSave={(data: { priceOverrides: Record<string, number>; blockedDates: string[] }) => {
-              console.log("onSave callback received data:", data);
-              // Call the helper to update the adjustments collection.
-              handleSaveAdjustments(selectedProperty!, data.priceOverrides, data.blockedDates);
-            }}
+            onSave={onSaveOverridesCallback}
           />
         )}
       </Modalize>

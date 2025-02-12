@@ -14,7 +14,6 @@ import { getPropertiesByUser } from "@/lib/appwrite";
 import { useGlobalContext } from "../../global-provider";
 
 // In case no media is provided, we fall back to a placeholder.
-// (You can remove this if you always expect a valid image URL.)
 const localPlaceholder = require("../../../assets/images/no-result.png");
 
 const Listings = () => {
@@ -42,21 +41,30 @@ const Listings = () => {
   }, [user]);
 
   const renderItem = ({ item }: { item: any }) => {
-    // Use the first media URL if available; otherwise fall back.
-    const imageUrl =
-      Array.isArray(item.media) && item.media.length > 0
-        ? { uri: item.media[0] }
-        : localPlaceholder;
+    // Try to use the "images" field (an array of stringified objects)
+    // to determine the main image.
+    let imageUrl = localPlaceholder;
 
+    if (item.images && Array.isArray(item.images) && item.images.length > 0) {
+      try {
+        const parsedImages = item.images.map((imgString: string) =>
+          JSON.parse(imgString)
+        );
+        // Look for the image marked as main; if not found, take the first image.
+        const mainImg = parsedImages.find((img: any) => img.isMain) || parsedImages[0];
+        if (mainImg) {
+          imageUrl = { uri: mainImg.remoteUrl || mainImg.localUri };
+        }
+      } catch (err) {
+        console.error("Error parsing property images", err);
+      }
+    }
+    
     return (
       <TouchableOpacity
         style={styles.card}
         onPress={() =>
-          // Update the route below to match your file structure.
-          // If your file is named "editProperty.tsx" inside app/(host)/properties/,
-          // then the route below should work.
           router.push(`../propertyProfile/${item.$id}`)
-
         }
       >
         <Image source={imageUrl} style={styles.cardImage} />
@@ -67,16 +75,14 @@ const Listings = () => {
     );
   };
 
-  // Option 1: Render the Add New Listing button as a footer on the FlatList.
+  // Render the Add New Listing element as a footer.
   const renderFooter = () => (
     <TouchableOpacity
-      style={styles.addButton}
-      onPress={() =>
-        // Use the full route without the file extension.
-        router.push("../property-setup")
-      }
+      style={styles.addListingContainer}
+      onPress={() => router.push("../property-setup")}
     >
-      <Text style={styles.addButtonText}>+ Add New Listing</Text>
+      <Text style={styles.addListingText}>Add New Listing</Text>
+      <Image source={require('@/assets/icons/add.png')} style={styles.addIcon} />
     </TouchableOpacity>
   );
 
@@ -92,9 +98,7 @@ const Listings = () => {
           renderItem={renderItem}
           contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
-            <Text style={styles.noPropertiesText}>
-              No listings available.
-            </Text>
+            <Text style={styles.noPropertiesText}>No listings available.</Text>
           }
           ListFooterComponent={renderFooter}
         />
@@ -128,19 +132,18 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#f9f9f9",
+    backgroundColor: "#fff",
     padding: 10,
     marginBottom: 10,
-    borderRadius: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#ccc",
+    // Removed rounded corners from card container if desired:
+    borderRadius: 0,
   },
   cardImage: {
     width: 60,
     height: 60,
+    // Apply curved corners to the image
     borderRadius: 8,
     marginRight: 10,
   },
@@ -153,17 +156,22 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     color: "#333",
   },
-  addButton: {
-    backgroundColor: "#0061FF",
-    paddingVertical: 15,
-    borderRadius: 8,
+  addListingContainer: {
+    flexDirection: "row",
     alignItems: "center",
-    marginTop: 20,
+    justifyContent: "center",
+    marginTop: 10,
   },
-  addButtonText: {
-    color: "#fff",
-    fontSize: 16,
+  addListingText: {
+    fontSize: 14,
     fontWeight: "bold",
+    color: "#70d7c7",
+  },
+  addIcon: {
+    width: 20,
+    height: 20,
+    tintColor: "#70d7c7",
+    marginLeft: 5,
   },
 });
 

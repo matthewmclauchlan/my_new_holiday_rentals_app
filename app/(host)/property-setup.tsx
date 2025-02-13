@@ -1,4 +1,3 @@
-// app/(host)/property-setup.tsx
 import React, { useState, useEffect } from "react";
 import {
   SafeAreaView,
@@ -18,8 +17,6 @@ import AmenitiesPicker from "@/components/AmenitiesPicker";
 import BottomSheetPicker from "@/components/BottomSheetPicker";
 import { useGlobalContext } from "../global-provider";
 import { AmenityTypeEnum } from "../../lib/types"; // Use the imported enum
-
-// Note: The local enum declaration for AmenityTypeEnum was removed to avoid duplicate declarations.
 
 // Initial form values with selectedAmenities typed as an array of string IDs.
 const initialValues = {
@@ -96,6 +93,19 @@ const validationSchemas = [
   Yup.object().shape({}),
 ];
 
+// --- Normalization and Mapping for Amenities ---
+const normalizeAmenity = (amenity: string): string =>
+  amenity.toLowerCase().replace(/\s+/g, '');
+
+const allowedAmenitiesMapping: Record<string, string> = {
+  "coffeemachine": "coffeemachine",
+  "garden": "garden",
+  "towels": "towels",
+  "fridge": "fridge",
+  "centralheating": "centralheating",
+  "washingmachine": "washingmachine",
+};
+
 export default function PropertySetupWizard() {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -123,20 +133,14 @@ export default function PropertySetupWizard() {
     }
     setIsSubmitting(true);
     try {
-      // Mapping: Convert the selected names (normalized to lowercase) to the allowed values.
-      // Allowed values: Coffeemachine, garden, centralheating, towels, fridge
-      const allowedAmenitiesMapping: Record<string, string> = {
-        "coffeemachine": "Coffeemachine",
-        "garden": "garden",
-        "centralheating": "centralheating",
-        "towels": "towels",
-        "fridge": "fridge",
-      };
-  
+      // --- Normalize and Map the Selected Amenities ---
       const mappedAmenities = values.selectedAmenities
-        .map((amenity) => allowedAmenitiesMapping[amenity.toLowerCase()])
+        .map((amenity) => {
+          const normalized = normalizeAmenity(amenity);
+          return allowedAmenitiesMapping[normalized];
+        })
         .filter((amenity) => amenity !== undefined);
-  
+
       await createProperty({
         name: values.name,
         type: values.propertyType as any,
@@ -166,8 +170,6 @@ export default function PropertySetupWizard() {
       setIsSubmitting(false);
     }
   };
-  
-  
 
   const renderStepContent = (formikProps: any) => {
     switch (step) {
@@ -380,4 +382,63 @@ const styles = StyleSheet.create({
     marginTop: 20,
   },
   info: { fontSize: 14, color: "#333", marginBottom: 5 },
+
+  // New: Card for updating amenities
+  card: { backgroundColor: "#fff", borderWidth: 1, borderColor: "#ccc", padding: 16, marginBottom: 20 },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+  cardTitle: { fontSize: 18, fontWeight: "bold" },
+  infoText: { fontSize: 16, color: "#333", marginTop: 8 },
+  infoBlock: { marginBottom: 10 },
+  noInfoText: { fontStyle: "italic", color: "#888", marginBottom: 10 },
+  
+  header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: 10, marginBottom: 10 },
+  closeButton: { padding: 10 },
+  closeIcon: { width: 24, height: 24, tintColor: "#000" },
+  headerTitle: { fontSize: 20, fontWeight: "bold" },
+  headerSpacer: { width: 44 },
+  centeredImageContainer: { alignItems: "center", marginBottom: 20 },
+  imageWrapper: { position: "relative", width: 200, height: 200 },
+  mainImageCentered: { width: "100%", height: "100%", borderRadius: 10 },
+  imageEditButton: { position: "absolute", top: 5, right: 5, backgroundColor: "rgba(0,0,0,0.6)", borderRadius: 15, padding: 5 },
+  editIcon: { width: 24, height: 24, tintColor: "#70d7c7" },
+  noImagePlaceholderCentered: { width: 200, height: 200, borderRadius: 10, backgroundColor: "#eee", justifyContent: "center", alignItems: "center", padding: 5 },
+  noImageText: { marginBottom: 5, fontSize: 14, color: "#666", textAlign: "center" },
+  uploadButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#70d7c7", paddingVertical: 8, paddingHorizontal: 12, borderRadius: 5, marginTop: 10 },
+  addImageButtonText: { color: "#fff", fontWeight: "bold" },
+  
+  modalContent: { padding: 20 },
+  sheetTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
+  inputRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
+  inputLabel: { width: 130, fontSize: 16, color: "#333" },
+  inputField: { flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, fontSize: 16 },
+  saveButton: { backgroundColor: "#70d7c7", paddingVertical: 12, borderRadius: 10, alignItems: "center", marginTop: 20 },
+  saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, borderBottomWidth: 1, borderBottomColor: "#ccc" },
+  modalTitle: { fontSize: 18, fontWeight: "bold", flex: 1, textAlign: "center" },
+  modalCloseIcon: { width: 24, height: 24, tintColor: "#000" },
+  fullScreenModal: { margin: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  section: { marginBottom: 20 },
+  mainImageContainer: { alignItems: "center" },
+  mainImage: { width: 200, height: 200, borderRadius: 10 },
+  mainImageEditRow: { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 8, padding: 8 },
+  replaceText: { fontSize: 16, color: "#70d7c7" },
+  editIconSmall: { width: 20, height: 20, tintColor: "#70d7c7", marginLeft: 5 },
+  addMainImageButton: { flexDirection: "row", alignItems: "center", backgroundColor: "#70d7c7", paddingVertical: 10, paddingHorizontal: 16, borderRadius: 5 },
+  galleryScrollView: { paddingHorizontal: 10 },
+  galleryCard: { width: 200, height: 200, marginRight: 10, alignItems: "center" },
+  galleryImage: { width: "100%", height: "100%", borderRadius: 10 },
+  galleryImageInput: { borderWidth: 1, borderColor: "#ccc", borderRadius: 5, padding: 4, marginTop: 4, fontSize: 12, width: "100%" },
+  galleryDeleteButton: { position: "absolute", top: 4, right: 4, padding: 2 },
+  galleryDeleteIcon: { width: 16, height: 16, tintColor: "#000" },
+  addGalleryCard: { width: 200, height: 200, borderRadius: 10, borderWidth: 1, borderColor: "#ccc", flexDirection: "row", alignItems: "center", justifyContent: "center" },
+  addGalleryText: { fontSize: 16, color: "#70d7c7" },
+  fixedSaveButtonContainer: { padding: 20, backgroundColor: "#fff" },
+  uploadIcon: { width: 20, height: 20, tintColor: "#70d7c7" },
+  policyCard: { borderWidth: 1, borderColor: "#ccc", padding: 12, marginBottom: 10, borderRadius: 8 },
+  selectedPolicyCard: { borderColor: "#70d7c7", backgroundColor: "#e6f7ff" },
+  policyTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
+  policyDescription: { fontSize: 14, color: "#555" },
+  cancellationModalContent: { padding: 20, paddingBottom: 80 },
+  cancellationSaveContainer: { padding: 20, borderTopWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
+  policyLink: { color: "#70d7c7", textDecorationLine: "underline", marginTop: 5 },
 });

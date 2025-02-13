@@ -132,20 +132,22 @@ const Property = () => {
 
   // Mapping for display-friendly amenity names.
   const amenityDisplayNames: Record<string, string> = {
-    "Coffeemachine": "Coffee Machine",
+    "coffeemachine": "Coffee Machine",
     "garden": "Garden",
     "centralheating": "Central Heating",
     "towels": "Towels",
     "fridge": "Fridge",
+    "washingmachine": "Washing Machine",
   };
 
   // Mapping for amenity icons (adjust the paths and keys as needed)
   const amenityIconMapping: Record<string, any> = {
-    "Coffeemachine": require("../../assets/icons/coffee_machine.png"),
+    "coffeemachine": require("../../assets/icons/coffee_machine.png"),
     "garden": require("../../assets/icons/garden (1).png"),
     "centralheating": require("../../assets/icons/central_heating.png"),
     "towels": require("../../assets/icons/towels.png"),
     "fridge": require("../../assets/icons/refrigerator.png"),
+    "washingmachine": require("../../assets/icons/washing_machine.png"),
   };
 
   return (

@@ -195,7 +195,7 @@ export default async function main(context, req) {
     await databases.createDocument(
       process.env.DATABASE_ID,
       process.env.BOOKING_PRICE_DETAILS_COLLECTION_ID,
-      'unique()',
+      'ID.unique()',
       {
         propertyId,
         breakdown: [breakdownString],

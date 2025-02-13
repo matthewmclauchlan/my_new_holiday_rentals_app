@@ -91,18 +91,8 @@ export interface User {
   roles?: string[];
 }
 
-// src/types/amenities.ts
-export enum AmenityTypeEnum {
-  WashingMachine = "washingmachine",
-  CoffeeMachine = "coffeemachine",
-  Garden = "garden",
-  Fridge = "fridge",
-  Towels = "towels",
-  CentralHeating = "centralheating",
-}
-
 export interface Amenity {
   $id: string;
-  name: string;       // e.g. "Washing Machine"
+  name: string;      
   icon: string;       // URL or local asset key—for example, using a mapping
 }

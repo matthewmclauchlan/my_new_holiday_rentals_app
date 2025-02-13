@@ -8,6 +8,8 @@ interface GlobalContextType {
   user: User | null;
   loading: boolean;
   refetch: (newParams?: Record<string, string | number>) => void;
+  propertyCache: { [id: string]: any };
+  updatePropertyCache: (property: any) => void;
 }
 
 const GlobalContext = createContext<GlobalContextType | undefined>(undefined);
@@ -19,55 +21,50 @@ interface GlobalProviderProps {
 export const GlobalProvider = ({ children }: GlobalProviderProps) => {
   const { data: userData, loading, refetch } = useAppwrite({ fn: getCurrentUser });
   const [mergedUser, setMergedUser] = useState<User | null>(null);
+  const [propertyCache, setPropertyCache] = useState<{ [id: string]: any }>({});
 
   useEffect(() => {
-    console.log("GlobalProvider: userData fetched =", userData);
     const mergeUserData = async () => {
       if (userData) {
-        // Start with the user data we already have.
-        // We'll add a hostProfile and roles to the user.
         let updatedUser: User = { ...userData };
-        console.log("GlobalProvider: Merging host profile for user:", userData.$id);
         try {
           const hostProfile = await getHostProfileByUserId(userData.$id);
-          console.log("GlobalProvider: Fetched host profile =", hostProfile);
           updatedUser.hostProfile = hostProfile as HostProfile | null;
         } catch (error) {
-          console.error("GlobalProvider: Error fetching host profile:", error);
           updatedUser.hostProfile = null;
         }
         try {
           const rolesDocs = await getRolesForUser(userData.$id);
-          // Assuming each document has a "role" field
           const roles = rolesDocs.map((doc: any) => doc.role);
           updatedUser = { ...updatedUser, roles };
         } catch (error) {
-          console.error("GlobalProvider: Error fetching roles:", error);
           updatedUser = { ...updatedUser, roles: [] };
         }
         setMergedUser(updatedUser);
-        console.log("GlobalProvider: Merged user updated =", updatedUser);
       } else {
-        console.log("GlobalProvider: No userData, setting mergedUser to null");
         setMergedUser(null);
       }
     };
     mergeUserData();
   }, [userData]);
 
-  const isLogged = !!mergedUser;
-  console.log("GlobalProvider: isLogged =", isLogged);
+  // Function to update the property cache
+  const updatePropertyCache = (property: any) => {
+    if (property?.$id) {
+      setPropertyCache((prev) => ({ ...prev, [property.$id]: property }));
+    }
+  };
 
+  const isLogged = !!mergedUser;
   return (
     <GlobalContext.Provider
       value={{
         isLogged,
         user: mergedUser,
         loading,
-        refetch: (newParams = {}) => {
-          console.log("GlobalProvider: refetch called with", newParams);
-          return refetch(newParams);
-        },
+        refetch: (newParams = {}) => refetch(newParams),
+        propertyCache,
+        updatePropertyCache,
       }}
     >
       {children}

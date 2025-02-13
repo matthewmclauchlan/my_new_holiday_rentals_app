@@ -62,7 +62,7 @@ async function upsertHostApplication(data: {
     await databases.createDocument(
       config.databaseId,
       collectionId,
-      ID.unique(),
+      ID.unique(), // Updated here
       docData
     );
   } catch (error) {
@@ -90,7 +90,7 @@ async function uploadFileWithSDK(fileUri: string): Promise<string> {
 
   const fileResponse = await storage.createFile(
     config.bucketId,
-    "unique()",
+    ID.unique(), // Updated here
     file
   );
 

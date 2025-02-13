@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
   SafeAreaView,
   ScrollView,
@@ -13,7 +13,6 @@ import {
   Dimensions,
   Switch,
   Button,
-  Pressable,
   Linking,
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -21,6 +20,7 @@ import { Modalize } from "react-native-modalize";
 import * as ImagePicker from "expo-image-picker";
 import * as FileSystem from "expo-file-system";
 import Constants from "expo-constants";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   getPropertyById,
   getPriceRulesForProperty,
@@ -34,18 +34,9 @@ import {
 import { getBookingRulesForProperty } from "@/lib/bookingHelper";
 import { useGlobalContext } from "@/app/global-provider";
 
-// Import types
-import type {
-  PriceRules,
-  PriceRulesUpdate,
-  CancellationPolicy,
-  BookingRules,
-  BookingRulesUpdate,
-  HouseRules,
-  HouseRulesUpdate,
-} from "@/lib/appwrite";
+// Import the Appwrite ID helper as an alias to avoid conflict with local variable "id"
+import { ID as AppwriteID } from "react-native-appwrite";
 
-// ------------------ Environment Variables ------------------
 const {
   EXPO_PUBLIC_APPWRITE_ENDPOINT,
   EXPO_PUBLIC_APPWRITE_PROJECT_ID,
@@ -54,9 +45,11 @@ const {
   EXPO_PUBLIC_APPWRITE_PROPERTIES_COLLECTION_ID,
 } = Constants.manifest?.extra || process.env;
 
+const windowHeight = Dimensions.get("window").height;
+
 // ------------------ Cancellation Policy Options ------------------
 const cancellationPolicyOptions: {
-  key: CancellationPolicy;
+  key: "Firm" | "Strict" | "Free" | "Non-refundable";
   title: string;
   description: string;
   link: string;
@@ -90,7 +83,7 @@ const cancellationPolicyOptions: {
 ];
 
 const getCancellationPolicyTitle = (
-  key: CancellationPolicy | string
+  key: "Firm" | "Strict" | "Free" | "Non-refundable" | string
 ): string => {
   const option = cancellationPolicyOptions.find((opt) => opt.key === key);
   return option ? option.title : "Not set";
@@ -98,25 +91,36 @@ const getCancellationPolicyTitle = (
 
 // ------------------ SaveButton Component ------------------
 interface SaveButtonProps {
-  onPress: () => void;
+  onPress: () => Promise<void>;
   isSaving: boolean;
   title: string;
 }
-const SaveButton: React.FC<SaveButtonProps> = ({ onPress, isSaving, title }) => (
-  <TouchableOpacity
-    style={[styles.saveButton, isSaving && { opacity: 0.5 }]}
-    onPress={onPress}
-    disabled={isSaving}
-  >
-    {isSaving ? (
-      <ActivityIndicator color="#fff" />
-    ) : (
-      <Text style={styles.saveButtonText}>{title}</Text>
-    )}
-  </TouchableOpacity>
-);
 
-// ------------------ Local Helper: Update Property Images ------------------
+const SaveButton: React.FC<SaveButtonProps> = ({ onPress, isSaving, title }) => {
+  const handlePress = async () => {
+    try {
+      await onPress();
+    } catch (error) {
+      console.error("Error in SaveButton onPress:", error);
+    }
+  };
+
+  return (
+    <TouchableOpacity
+      style={[styles.saveButton, isSaving && { opacity: 0.5 }]}
+      onPress={handlePress}
+      disabled={isSaving}
+    >
+      {isSaving ? (
+        <ActivityIndicator color="#fff" />
+      ) : (
+        <Text style={styles.saveButtonText}>{title}</Text>
+      )}
+    </TouchableOpacity>
+  );
+};
+
+// ------------------ Helper: Update Property Images ------------------
 const updatePropertyImages = async (propertyId: string, images: any[]) => {
   try {
     const databaseId = EXPO_PUBLIC_APPWRITE_DATABASE_ID;
@@ -155,16 +159,15 @@ const updatePropertyDetails = async (
   }
 };
 
-// ------------------ Component ------------------
 const HostPropertyDetail = () => {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useGlobalContext();
+  const { user, updatePropertyCache } = useGlobalContext();
 
   const [property, setProperty] = useState<any>(null);
-  const [pricingRules, setPricingRules] = useState<PriceRules | null>(null);
-  const [bookingRules, setBookingRules] = useState<BookingRules | null>(null);
-  const [houseRules, setHouseRules] = useState<HouseRules | null>(null);
+  const [pricingRules, setPricingRules] = useState<any>(null);
+  const [bookingRules, setBookingRules] = useState<any>(null);
+  const [houseRules, setHouseRules] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const [propertyTitle, setPropertyTitle] = useState("");
@@ -206,8 +209,8 @@ const HostPropertyDetail = () => {
     advanceNotice: "",
   });
   const [selectedCancellationPolicy, setSelectedCancellationPolicy] =
-    useState<CancellationPolicy>("Firm");
-  const [houseRulesDetails, setHouseRulesDetails] = useState<HouseRulesUpdate>({
+    useState<"Firm" | "Strict" | "Free" | "Non-refundable">("Firm");
+  const [houseRulesDetails, setHouseRulesDetails] = useState({
     checkIn: "",
     checkOut: "",
     petsAllowed: false,
@@ -227,100 +230,100 @@ const HostPropertyDetail = () => {
   const [isSavingHouseRules, setIsSavingHouseRules] = useState(false);
   const [isSavingImages, setIsSavingImages] = useState(false);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch property details
-        const propertyData = await getPropertyById(id);
-        setProperty(propertyData);
-        setPropertyTitle(propertyData?.name || "");
-        setPropertyDescription(propertyData?.description || "");
-        if (propertyData?.images && Array.isArray(propertyData.images)) {
-          try {
-            const parsedImages = propertyData.images.map((imgString: string) =>
-              JSON.parse(imgString)
-            );
-            setImages(parsedImages);
-          } catch (e) {
-            console.error("Error parsing images", e);
-          }
+  const fetchData = async () => {
+    try {
+      const propertyData = await getPropertyById(id);
+      setProperty(propertyData);
+      setPropertyTitle(propertyData?.name || "");
+      setPropertyDescription(propertyData?.description || "");
+      if (propertyData?.images && Array.isArray(propertyData.images)) {
+        try {
+          const parsedImages = propertyData.images.map((imgString: string) =>
+            JSON.parse(imgString)
+          );
+          setImages(parsedImages);
+        } catch (e) {
+          console.error("Error parsing images", e);
         }
-        // Fetch pricing rules
-        const pricingData = await getPriceRulesForProperty(id);
-        setPricingRules(pricingData);
-        if (pricingData) {
-          setPricingDetails({
-            basePricePerNight: pricingData.basePricePerNight.toString(),
-            basePricePerNightWeekend: pricingData.basePricePerNightWeekend.toString(),
-            weeklyDiscount: pricingData.weeklyDiscount?.toString() || "",
-            monthlyDiscount: pricingData.monthlyDiscount?.toString() || "",
-            cleaningFee: pricingData.cleaningFee?.toString() || "",
-            petFee: pricingData.petFee?.toString() || "",
-          });
-        }
-        // Fetch booking rules
-        if (user) {
-          let bookingData = await getBookingRulesForProperty(id);
-          if (!bookingData) {
-            const defaultBookingRules: any = {
-              cancellationPolicy: "Firm",
-              instantBook: false,
-              minStay: 0,
-              maxStay: 0,
-              advanceNotice: 0,
-              propertyId: id,
-            };
-            bookingData = await createOrUpdateBookingRulesForProperty(
-              id,
-              defaultBookingRules,
-              user.$id
-            );
-          }
-          setBookingRules(bookingData as BookingRules);
-          setSelectedCancellationPolicy(bookingData.cancellationPolicy);
-          setBookingRulesDetails({
-            instantBook: bookingData.instantBook,
-            minStay: bookingData.minStay.toString(),
-            maxStay: bookingData.maxStay.toString(),
-            advanceNotice: bookingData.advanceNotice.toString(),
-          });
-        } else {
-          Alert.alert("Error", "User not logged in");
-        }
-        // Fetch house rules
-        const houseData = await getHouseRulesForProperty(id);
-        setHouseRules(houseData);
-        if (houseData) {
-          setHouseRulesDetails({
-            checkIn: houseData.checkIn,
-            checkOut: houseData.checkOut,
-            petsAllowed: houseData.petsAllowed,
-            guestsMax: houseData.guestsMax,
-            smokingAllowed: houseData.smokingAllowed,
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching property or rules:", error);
-      } finally {
-        setLoading(false);
       }
-    };
-
-    if (id) {
-      fetchData();
+      const pricingData = await getPriceRulesForProperty(id);
+      setPricingRules(pricingData);
+      if (pricingData) {
+        setPricingDetails({
+          basePricePerNight: pricingData.basePricePerNight.toString(),
+          basePricePerNightWeekend: pricingData.basePricePerNightWeekend.toString(),
+          weeklyDiscount: pricingData.weeklyDiscount?.toString() || "",
+          monthlyDiscount: pricingData.monthlyDiscount?.toString() || "",
+          cleaningFee: pricingData.cleaningFee?.toString() || "",
+          petFee: pricingData.petFee?.toString() || "",
+        });
+      }
+      if (user) {
+        let bookingData = await getBookingRulesForProperty(id);
+        if (!bookingData) {
+          const defaultBookingRules: any = {
+            cancellationPolicy: "Firm",
+            instantBook: false,
+            minStay: 0,
+            maxStay: 0,
+            advanceNotice: 0,
+            propertyId: id,
+          };
+          bookingData = await createOrUpdateBookingRulesForProperty(
+            id,
+            defaultBookingRules,
+            user.$id
+          );
+        }
+        setBookingRules(bookingData);
+        setSelectedCancellationPolicy(bookingData.cancellationPolicy);
+        setBookingRulesDetails({
+          instantBook: bookingData.instantBook,
+          minStay: bookingData.minStay.toString(),
+          maxStay: bookingData.maxStay.toString(),
+          advanceNotice: bookingData.advanceNotice.toString(),
+        });
+      } else {
+        Alert.alert("Error", "User not logged in");
+      }
+      const houseData = await getHouseRulesForProperty(id);
+      setHouseRules(houseData);
+      if (houseData) {
+        setHouseRulesDetails({
+          checkIn: houseData.checkIn,
+          checkOut: houseData.checkOut,
+          petsAllowed: houseData.petsAllowed,
+          guestsMax: houseData.guestsMax,
+          smokingAllowed: houseData.smokingAllowed,
+        });
+      }
+      // Update global cache with the fetched property
+      if (updatePropertyCache) {
+        updatePropertyCache(propertyData);
+      }
+    } catch (error) {
+      console.error("Error fetching property or rules:", error);
+    } finally {
+      setLoading(false);
     }
-  }, [id, user]);
+  };
 
-  // Compute main image and gallery images.
-  const mainImage = images.find((img) => img.isMain);
-  const galleryImages = images.filter((img) => !img.isMain);
+  useFocusEffect(
+    useCallback(() => {
+      if (id) {
+        fetchData();
+      }
+    }, [id, user])
+  );
 
-  // Scroll gallery to end when new gallery images are added.
+  const mainImg = images.find((img) => img.isMain);
+  const galleryImgs = images.filter((img) => !img.isMain);
+
   useEffect(() => {
-    if (galleryImages.length > 0) {
+    if (galleryImgs.length > 0) {
       galleryScrollRef.current?.scrollToEnd({ animated: true });
     }
-  }, [galleryImages.length]);
+  }, [galleryImgs.length]);
 
   const handleClose = () => {
     router.back();
@@ -348,7 +351,6 @@ const HostPropertyDetail = () => {
     }
   };
 
-  // ------------------ Image Picker Functions ------------------
   const openMainImagePicker = async () => {
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permissionResult.granted) {
@@ -404,7 +406,7 @@ const HostPropertyDetail = () => {
     try {
       const fileName = fileUri.split("/").pop() || "photo.jpg";
       const fileInfo = await FileSystem.getInfoAsync(fileUri);
-      const fileSize = (fileInfo as any).size || 0;
+      const fileSize = (fileInfo as { size?: number }).size ?? 0;
       const fileData = {
         uri: fileUri,
         name: fileName,
@@ -413,7 +415,7 @@ const HostPropertyDetail = () => {
       };
       const uploadedFile = await storage.createFile(
         EXPO_PUBLIC_APPWRITE_MEDIA_BUCKET_ID,
-        "unique()",
+        AppwriteID.unique(),
         fileData
       );
       return uploadedFile;
@@ -436,7 +438,7 @@ const HostPropertyDetail = () => {
           const mediaDocument = await databases.createDocument(
             EXPO_PUBLIC_APPWRITE_DATABASE_ID,
             process.env.EXPO_PUBLIC_APPWRITE_MEDIA_COLLECTION_ID || "",
-            "unique()",
+            AppwriteID.unique(),
             {
               fileId: uploadedFile.$id,
               description: img.description,
@@ -464,7 +466,7 @@ const HostPropertyDetail = () => {
     if (savingPricingRef.current) return;
     savingPricingRef.current = true;
     try {
-      const updatedPricing: PriceRulesUpdate = {
+      const updatedPricing = {
         basePricePerNight: parseFloat(pricingDetails.basePricePerNight) || 0,
         basePricePerNightWeekend: parseFloat(pricingDetails.basePricePerNightWeekend) || 0,
         weeklyDiscount: parseFloat(pricingDetails.weeklyDiscount) || 0,
@@ -488,7 +490,7 @@ const HostPropertyDetail = () => {
     if (!user || savingBookingRulesRef.current) return;
     savingBookingRulesRef.current = true;
     try {
-      const updatedBookingRules: BookingRulesUpdate = {
+      const updatedBookingRules = {
         cancellationPolicy: selectedCancellationPolicy,
         instantBook: bookingRulesDetails.instantBook,
         minStay: parseInt(bookingRulesDetails.minStay, 10) || 0,
@@ -516,7 +518,7 @@ const HostPropertyDetail = () => {
     if (savingHouseRulesRef.current) return;
     savingHouseRulesRef.current = true;
     try {
-      const updatedHouseRules: HouseRulesUpdate = {
+      const updatedHouseRules = {
         checkIn: houseRulesDetails.checkIn,
         checkOut: houseRulesDetails.checkOut,
         petsAllowed: houseRulesDetails.petsAllowed,
@@ -565,10 +567,10 @@ const HostPropertyDetail = () => {
       <ScrollView contentContainerStyle={styles.content}>
         {/* Main Image Section */}
         <View style={styles.centeredImageContainer}>
-          {mainImage ? (
+          {mainImg ? (
             <View style={styles.imageWrapper}>
               <Image
-                source={{ uri: mainImage.remoteUrl || mainImage.localUri }}
+                source={{ uri: mainImg.remoteUrl || mainImg.localUri }}
                 style={styles.mainImageCentered}
               />
               <TouchableOpacity style={styles.imageEditButton} onPress={() => imageModalRef.current?.open()}>
@@ -686,9 +688,28 @@ const HostPropertyDetail = () => {
             <Text style={styles.noInfoText}>No house rules set.</Text>
           )}
         </View>
+
+        {/* Update Amenities Card */}
+        <TouchableOpacity
+          style={styles.card}
+          onPress={() => {
+            // Navigate to the amenities edit page
+            router.push({ pathname: "../amenities-edit", params: { id: property.$id } });
+          }}
+        >
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>Update Amenities</Text>
+            <Image source={require('@/assets/icons/edit.png')} style={styles.editIcon} />
+          </View>
+          {property.amenities && property.amenities.length > 0 ? (
+            <Text style={styles.infoText}>{property.amenities.join(", ")}</Text>
+          ) : (
+            <Text style={styles.infoText}>No amenities set.</Text>
+          )}
+        </TouchableOpacity>
       </ScrollView>
 
-      {/* ------------------ Modals for Editing ------------------ */}
+      {/* ------------------ Modals for Editing (Other than Amenities) ------------------ */}
 
       {/* Modal for Editing Property Info */}
       <Modalize ref={propertyInfoModalRef} modalHeight={300}>
@@ -851,7 +872,7 @@ const HostPropertyDetail = () => {
       </Modalize>
 
       {/* Modal for Editing Cancellation Policy */}
-      <Modalize ref={cancellationModalRef} modalHeight={Dimensions.get("window").height * 0.9}>
+      <Modalize ref={cancellationModalRef} modalHeight={windowHeight}>
         <View style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={styles.cancellationModalContent}>
             <Text style={styles.sheetTitle}>Select Cancellation Policy</Text>
@@ -873,7 +894,14 @@ const HostPropertyDetail = () => {
             ))}
           </ScrollView>
           <View style={styles.cancellationSaveContainer}>
-            <SaveButton onPress={() => cancellationModalRef.current?.close()} isSaving={false} title="Save Policy" />
+            <SaveButton
+              onPress={async () => {
+                await saveBookingRulesDetails();
+                cancellationModalRef.current?.close();
+              }}
+              isSaving={isSavingBookingRules}
+              title="Save Policy"
+            />
           </View>
         </View>
       </Modalize>
@@ -938,16 +966,15 @@ const HostPropertyDetail = () => {
         </ScrollView>
       </Modalize>
 
-      {/* Image Management Modal */}
+      {/* Modal for Image Management */}
       <Modalize
         ref={imageModalRef}
-        modalHeight={Dimensions.get("window").height}
+        modalHeight={windowHeight}
         modalStyle={styles.fullScreenModal}
         closeOnOverlayTap={false}
         panGestureEnabled={false}
       >
         <View style={{ flex: 1 }}>
-          {/* Custom Modal Header */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => imageModalRef.current?.close()}>
               <Image source={require('@/assets/icons/cross.png')} style={styles.modalCloseIcon} />
@@ -960,12 +987,11 @@ const HostPropertyDetail = () => {
             contentContainerStyle={[styles.modalContent, { flexGrow: 1 }]}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Main Image Section */}
             <View style={styles.section}>
-              {mainImage ? (
+              {mainImg ? (
                 <View style={styles.mainImageContainer}>
                   <Image
-                    source={{ uri: mainImage.remoteUrl || mainImage.localUri }}
+                    source={{ uri: mainImg.remoteUrl || mainImg.localUri }}
                     style={styles.mainImage}
                   />
                   <View style={styles.mainImageEditRow}>
@@ -983,7 +1009,6 @@ const HostPropertyDetail = () => {
               )}
             </View>
 
-            {/* Gallery Images Section */}
             <View style={[styles.section, { marginTop: 20 }]}>
               <ScrollView
                 horizontal
@@ -991,7 +1016,7 @@ const HostPropertyDetail = () => {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.galleryScrollView}
               >
-                {galleryImages.map((img) => (
+                {galleryImgs.map((img) => (
                   <View key={img.localUri} style={styles.galleryCard}>
                     <Image
                       source={{ uri: img.remoteUrl || img.localUri }}
@@ -1023,7 +1048,6 @@ const HostPropertyDetail = () => {
                   </View>
                 ))}
 
-                {/* Add Gallery Card */}
                 <TouchableOpacity style={styles.galleryCard} onPress={openGalleryImagePicker}>
                   <View style={styles.addGalleryCard}>
                     <Image source={require('@/assets/icons/upload.png')} style={styles.uploadIcon} />
@@ -1041,6 +1065,8 @@ const HostPropertyDetail = () => {
     </SafeAreaView>
   );
 };
+
+export default HostPropertyDetail;
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 20 },
@@ -1067,7 +1093,9 @@ const styles = StyleSheet.create({
   noInfoText: { fontStyle: "italic", color: "#888", marginBottom: 10 },
   modalContent: { padding: 20 },
   sheetTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
-  input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, marginVertical: 10 },
+  inputRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
+  inputLabel: { width: 130, fontSize: 16, color: "#333" },
+  inputField: { flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, fontSize: 16 },
   saveButton: { backgroundColor: "#70d7c7", paddingVertical: 12, borderRadius: 10, alignItems: "center", marginTop: 20 },
   saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 10, borderBottomWidth: 1, borderBottomColor: "#ccc" },
@@ -1088,7 +1116,6 @@ const styles = StyleSheet.create({
   galleryDeleteButton: { position: "absolute", top: 4, right: 4, padding: 2 },
   galleryDeleteIcon: { width: 16, height: 16, tintColor: "#000" },
   addGalleryCard: { width: 200, height: 200, borderRadius: 10, borderWidth: 1, borderColor: "#ccc", flexDirection: "row", alignItems: "center", justifyContent: "center" },
-  galleryUploadIcon: { width: 20, height: 20, tintColor: "#70d7c7", marginRight: 5 },
   addGalleryText: { fontSize: 16, color: "#70d7c7" },
   fixedSaveButtonContainer: { padding: 20, backgroundColor: "#fff" },
   uploadIcon: { width: 20, height: 20, tintColor: "#70d7c7" },
@@ -1096,41 +1123,7 @@ const styles = StyleSheet.create({
   selectedPolicyCard: { borderColor: "#70d7c7", backgroundColor: "#e6f7ff" },
   policyTitle: { fontSize: 16, fontWeight: "bold", marginBottom: 4 },
   policyDescription: { fontSize: 14, color: "#555" },
-  // New styles for the Cancellation Policy modal:
-  cancellationModalContent: {
-    padding: 20,
-    paddingBottom: 80, // Extra space for the save button
-  },
-  cancellationSaveContainer: {
-    padding: 20,
-    borderTopWidth: 1,
-    borderColor: "#ccc",
-    backgroundColor: "#fff",
-  },
-  policyLink: {
-    color: "#70d7c7",
-    textDecorationLine: "underline",
-    marginTop: 5,
-  },
-  // Styles for inline input rows in modals
-  inputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 8,
-  },
-  inputLabel: {
-    width: 130,
-    fontSize: 16,
-    color: "#333",
-  },
-  inputField: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-  },
+  cancellationModalContent: { padding: 20, paddingBottom: 80 },
+  cancellationSaveContainer: { padding: 20, borderTopWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
+  policyLink: { color: "#70d7c7", textDecorationLine: "underline", marginTop: 5 },
 });
-
-export default HostPropertyDetail;

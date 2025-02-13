@@ -475,12 +475,16 @@ export async function createProperty(data: {
 
   let response: Models.Document;
   try {
-    response = await databases.createDocument<Models.Document>(
-      config.databaseId,
-      config.propertiesCollectionId,
-      "unique()",
-      propertyData
-    );
+    const newPropertyId = ID.unique();
+console.log("Creating property with id:", newPropertyId);
+response = await databases.createDocument(
+  config.databaseId,
+  config.propertiesCollectionId,
+  newPropertyId,
+  propertyData
+);
+
+    
   } catch (error: any) {
     console.error("❌ Error creating property:", error.message || error);
     throw error;
@@ -1006,8 +1010,8 @@ export async function createOrUpdateBookingRulesForProperty(
 export const getBookingRulesForProperty = async (propertyId: string) => {
   try {
     const response = await databases.listDocuments(
-      process.env.EXPO_PUBLIC_APPWRITE_DATABASE_ID || "",
-      process.env.EXPO_PUBLIC_APPWRITE_BOOKING_RULES_COLLECTION_ID || "",
+      config.databaseId,
+      config.bookingRulesCollectionId,
       [Query.equal("propertyId", propertyId)]
     );
     // If a document exists, return the first one
@@ -1020,6 +1024,8 @@ export const getBookingRulesForProperty = async (propertyId: string) => {
     throw error;
   }
 };
+
+
 
 
 /**
@@ -1048,19 +1054,24 @@ export interface HouseRulesUpdate {
 /**
  * Fetch house rules for a property.
  */
-export async function getHouseRulesForProperty(houseRulesId: string): Promise<HouseRules | null> {
+export async function getHouseRulesForProperty(propertyId: string): Promise<HouseRules | null> {
   try {
-    const response = await databases.getDocument(
+    const response = await databases.listDocuments(
       config.databaseId,
       config.houseRulesCollectionId,
-      houseRulesId
+      [Query.equal("propertyId", propertyId)]
     );
-    return response as HouseRules;
+    // Return the first matching document, if any.
+    if (response.documents.length > 0) {
+      return response.documents[0] as HouseRules;
+    }
+    return null;
   } catch (error) {
     console.error("❌ Error fetching house rules for property:", error);
     return null;
   }
 }
+
 
 
 /**

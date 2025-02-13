@@ -1,4 +1,3 @@
-// components/AmenitiesPicker.tsx
 import React, { useEffect, useState } from "react";
 import {
   SectionList,
@@ -9,11 +8,10 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { useAppwrite } from "@/lib/useAppwrite";
-import { getAmenities } from "@/lib/appwrite"; // Updated import path!
+import { getAmenities } from "@/lib/appwrite";
 import { Amenity } from "@/lib/types";
-import { groupAmenitiesByFirstLetter } from "@/lib/utils";
+import { groupAmenitiesByFirstLetter, normalizeAmenity } from "@/lib/utils";
 
-// Define the AmenitySection type locally (since it's not exported from "@/lib/types")
 interface AmenitySection {
   title: string;
   data: Amenity[];
@@ -38,9 +36,7 @@ export default function AmenitiesPicker({
 
   useEffect(() => {
     if (data) {
-      console.log("Amenities data fetched:", data);
       const grouped = groupAmenitiesByFirstLetter(data);
-      console.log("Grouped Amenities:", grouped);
       setSections(grouped);
     }
   }, [data]);
@@ -65,20 +61,23 @@ export default function AmenitiesPicker({
       renderSectionHeader={({ section: { title } }) => (
         <Text style={styles.sectionHeader}>{title}</Text>
       )}
-      renderItem={({ item }) => (
-        <View style={styles.itemRow}>
-          {/* 
-            Instead of using item.$id, pass item.name.
-            This ensures that when an amenity is toggled, its name (e.g., "Coffeemachine") is stored.
-          */}
-          <TouchableOpacity onPress={() => onToggle(item.name)} style={styles.checkbox}>
-            <Text style={styles.checkboxText}>
-              {selectedAmenities.includes(item.name) ? "✓" : ""}
-            </Text>
-          </TouchableOpacity>
-          <Text style={styles.itemText}>{item.name}</Text>
-        </View>
-      )}
+      renderItem={({ item }) => {
+        // Compare normalized values so that "Fridge", "fridge", and " FRIDGE " all match.
+        const isSelected = selectedAmenities.some(
+          (amenity) => normalizeAmenity(amenity) === normalizeAmenity(item.name)
+        );
+        return (
+          <View style={styles.itemRow}>
+            <TouchableOpacity
+              onPress={() => onToggle(item.name)}
+              style={styles.checkbox}
+            >
+              <Text style={styles.checkboxText}>{isSelected ? "✓" : ""}</Text>
+            </TouchableOpacity>
+            <Text style={styles.itemText}>{item.name}</Text>
+          </View>
+        );
+      }}
       contentContainerStyle={styles.listContainer}
     />
   );

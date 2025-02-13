@@ -5,6 +5,9 @@ export interface AmenitySection {
   data: Amenity[];
 }
 
+/**
+ * Groups amenities by the first letter of their name (capitalized).
+ */
 export function groupAmenitiesByFirstLetter(amenities: Amenity[]): AmenitySection[] {
   const groups: { [key: string]: Amenity[] } = {};
   amenities.forEach((amenity) => {
@@ -15,7 +18,7 @@ export function groupAmenitiesByFirstLetter(amenities: Amenity[]): AmenitySectio
     groups[firstLetter].push(amenity);
   });
 
-  // Convert to an array of sections sorted by the letter
+  // Convert to an array of sections sorted by the letter.
   const sections: AmenitySection[] = Object.keys(groups)
     .sort()
     .map((letter) => ({
@@ -25,7 +28,9 @@ export function groupAmenitiesByFirstLetter(amenities: Amenity[]): AmenitySectio
   return sections;
 }
 
-// Add getDatesInRange function
+/**
+ * Returns an array of date strings (in YYYY-MM-DD format) between the start and end dates (inclusive).
+ */
 export function getDatesInRange(startDate: string, endDate: string): string[] {
   const start = new Date(startDate);
   const end = new Date(endDate);
@@ -39,4 +44,19 @@ export function getDatesInRange(startDate: string, endDate: string): string[] {
     current.setDate(current.getDate() + 1);
   }
   return dates;
+}
+
+/**
+ * Normalizes a string by trimming whitespace and converting to lower case.
+ */
+export function normalizeString(str: string): string {
+  return str.trim().toLowerCase();
+}
+
+/**
+ * Normalizes an amenity string.
+ * (This is a specialized alias to `normalizeString` for clarity.)
+ */
+export function normalizeAmenity(amenity: string): string {
+  return normalizeString(amenity);
 }

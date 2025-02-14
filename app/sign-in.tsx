@@ -27,12 +27,10 @@ const createEmailSession = async (email: string, password: string) => {
 
   const response = await fetch(url, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Appwrite-Project": config.projectId,
-    },
-    body: JSON.stringify({ email, password }),
-  });
+  credentials: "include", // ensures cookies are sent
+  headers: { "Content-Type": "application/json", "X-Appwrite-Project": config.projectId },
+  body: JSON.stringify({ email, password }),
+});
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(errorText);
@@ -83,8 +81,9 @@ const Auth = () => {
       try {
         await account.deleteSession("current");
       } catch (err) {
-        // Ignore errors if no session exists.
+        console.log("Auth: No current session to delete, continuing...");
       }
+      
       const session = await createEmailSession(email, password);
       if (session) {
         console.log("🔄 Email Login successful, refreshing session...");

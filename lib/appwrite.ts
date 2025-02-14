@@ -190,19 +190,31 @@ export async function getRolesForUser(userId: string) {
  */
 export async function getCurrentUser() {
   try {
+    console.log("getCurrentUser: Listing sessions...");
     const sessionList = await account.listSessions();
-    if (!sessionList.sessions.length) return null;
+    console.log("getCurrentUser: Session list:", sessionList);
+
+    if (!sessionList.sessions.length) {
+      console.log("getCurrentUser: No sessions found, returning null.");
+      return null;
+    }
+    console.log("getCurrentUser: Fetching current user data...");
     const result = await account.get();
+    console.log("getCurrentUser: Raw user data:", result);
     if (result.$id) {
       const initials = avatar.getInitials(result.name).toString();
+      console.log("getCurrentUser: User authenticated with id:", result.$id);
       return { ...result, avatar: initials };
     }
+    console.log("getCurrentUser: User data missing $id, returning null.");
     return null;
   } catch (error) {
-    console.error("❌ Error fetching current user:", error);
+    console.error("❌ Error fetching current user in getCurrentUser:", error);
     return null;
   }
 }
+
+
 
 
 /**

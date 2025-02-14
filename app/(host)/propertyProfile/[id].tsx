@@ -15,6 +15,7 @@ import {
   Button,
   Linking,
 } from "react-native";
+import { Link } from 'expo-router';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Modalize } from "react-native-modalize";
 import * as ImagePicker from "expo-image-picker";
@@ -868,6 +869,16 @@ const HostPropertyDetail = () => {
             />
           </View>
           <SaveButton onPress={saveBookingRulesDetails} isSaving={isSavingBookingRules} title="Save Booking Rules" />
+
+          {/* Link to the Help Article */}
+<View style={{ marginTop: 20, alignItems: "center" }}>
+  <Link href="/help/how-instant-book-works">
+    <Text style={styles.helpLink}>
+      How Instant Book Works
+    </Text>
+  </Link>
+</View>
+
         </ScrollView>
       </Modalize>
 
@@ -1126,4 +1137,9 @@ const styles = StyleSheet.create({
   cancellationModalContent: { padding: 20, paddingBottom: 80 },
   cancellationSaveContainer: { padding: 20, borderTopWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
   policyLink: { color: "#70d7c7", textDecorationLine: "underline", marginTop: 5 },
+  helpLink: {
+    color: "#70d7c7",
+    textDecorationLine: "underline",
+    fontSize: 16,
+  },
 });

@@ -29,7 +29,7 @@ export default {
       },
     },
     web: {
-      favicon: "./assets/favicon.png",
+      favicon: "./assets/icons/heart.png",
     },
     extra: {
       appwriteEndpoint: process.env.EXPO_PUBLIC_APPWRITE_ENDPOINT,
@@ -55,6 +55,11 @@ export default {
       glideApiKey: process.env.GLIDE_API_KEY,
       glideAppId: process.env.GLIDE_APP_ID,
       webhookSecret: process.env.WEBHOOK_SECRET,
+      NEXT_PUBLIC_SPACE_ID: "xqszf51o4uzb",
+      NEXT_PUBLIC_ENVIRONMENT: "master",
+      NEXT_PUBLIC_CONTENTFUL_ACCESS_TOKEN: "ui7dC4Qdx-sz31B2zBr9nufGZN_M0-xfyL5WKNdacvE", // Delivery token
+      NEXT_PUBLIC_CONTENTFUL_PREVIEW_ACCESS_TOKEN: "Q_LYH6ZTK8DIQ4qsrs7boxlPJzW8bF7T0B8JvgmTpRk",
+      NEXT_PUBLIC_HELP_ARTICLE_ID: "Iir7803Qf9TPT0EShFyyb",
     },
   },
 };

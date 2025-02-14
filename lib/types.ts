@@ -1,5 +1,6 @@
 // lib/types.ts
 
+
 // Filter options (already used in your project)
 export interface FilterOptions {
   category: string;
@@ -95,4 +96,30 @@ export interface Amenity {
   $id: string;
   name: string;      
   icon: string;       // URL or local asset key—for example, using a mapping
+}
+
+export interface HelpArticleFields {
+  title: string;
+  slug: string;
+  content: any; // Rich text field
+  summary: string;
+  publishDate: string;
+}
+
+
+export interface HelpArticle {
+  sys: {
+    id: string;
+    type: string;
+    createdAt: string;
+    updatedAt: string;
+    revision: number;
+    contentType: {
+      sys: {
+        id: string;
+        type: string;
+      };
+    };
+  };
+  fields: HelpArticleFields;
 }

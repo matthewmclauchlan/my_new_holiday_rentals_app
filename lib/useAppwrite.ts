@@ -1,4 +1,3 @@
-// lib/useAppwrite.tsx
 import { Alert } from "react-native";
 import { useEffect, useState, useCallback } from "react";
 
@@ -26,15 +25,17 @@ export const useAppwrite = <T, P extends Record<string, string | number>>({
 
   const fetchData = useCallback(
     async (fetchParams: P) => {
-      console.log("useAppwrite: fetching data with", fetchParams);
+      console.log("useAppwrite: fetching data with params:", fetchParams);
       setLoading(true);
       setError(null);
       try {
         const result = await fn(fetchParams);
+        console.log("useAppwrite: received result:", result);
         setData(result);
       } catch (err: unknown) {
         const errorMessage =
           err instanceof Error ? err.message : "An unknown error occurred";
+        console.error("useAppwrite: Error:", errorMessage);
         setError(errorMessage);
         Alert.alert("Error", errorMessage);
       } finally {
@@ -49,10 +50,13 @@ export const useAppwrite = <T, P extends Record<string, string | number>>({
     if (!skip) {
       fetchData(params);
     }
-    // Use JSON.stringify to compare params deeply
+    // Deep compare params via JSON.stringify
   }, [skip, JSON.stringify(params)]);
 
-  const refetch = async (newParams: P) => await fetchData(newParams);
+  const refetch = async (newParams: P) => {
+    console.log("useAppwrite: refetch called with params:", newParams);
+    await fetchData(newParams);
+  };
 
   return { data, loading, error, refetch };
 };

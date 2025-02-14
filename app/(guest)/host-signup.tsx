@@ -16,7 +16,7 @@ import { useRouter } from "expo-router";
 import { useGlobalContext } from "../global-provider";
 // Import functions from your Appwrite lib
 import { upsertHostProfile, addOwnerRole, config, storage } from "@/lib/appwrite";
-import CountryPicker, { Country, CountryCode } from "react-native-country-picker-modal";
+
 import * as ImagePicker from "expo-image-picker";
 import { ID, Databases, Client } from "react-native-appwrite";
 import * as FileSystem from "expo-file-system";
@@ -124,9 +124,7 @@ export default function HostSignupWizard() {
 
   const [step, setStep] = useState<WizardStep>(WizardStep.BASIC_INFO);
   const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [callingCode, setCallingCode] = useState<string>("1");
-  const [countryCode, setCountryCode] = useState<CountryCode>("US");
+  const [phone, setPhone] = useState(""); // Regular text input for phone number
   const [docUri, setDocUri] = useState<string | null>(null);
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [hasReadTerms, setHasReadTerms] = useState(false);
@@ -196,7 +194,7 @@ export default function HostSignupWizard() {
       await upsertHostProfile({
         userId: extendedUser.$id,
         fullName,
-        phoneNumber: `+${callingCode} ${phone}`,
+        phoneNumber: phone, // Use the phone number from the regular TextInput
         hostDocumentUrl: fileUrl,
         termsAccepted: acceptTerms,
       });
@@ -208,7 +206,7 @@ export default function HostSignupWizard() {
       // await upsertHostApplication({
       //   userId: extendedUser.$id,
       //   fullName,
-      //   phoneNumber: `+${callingCode} ${phone}`,
+      //   phoneNumber: phone,
       //   hostDocumentId: fileUrl,
       // });
 
@@ -281,22 +279,10 @@ export default function HostSignupWizard() {
             />
             <Text style={styles.label}>Phone Number</Text>
             <View style={styles.phoneRow}>
-              <CountryPicker
-                countryCode={countryCode}
-                withFilter
-                withFlag
-                withCallingCode
-                onSelect={(country: Country) => {
-                  setCountryCode(country.cca2 as CountryCode);
-                  setCallingCode(country.callingCode[0]);
-                }}
-                containerButtonStyle={styles.countryPicker}
-              />
-              <Text style={styles.callingCode}>+{callingCode}</Text>
               <TextInput
                 value={phone}
                 onChangeText={setPhone}
-                placeholder="e.g. 5551234"
+                placeholder="Enter your phone number"
                 keyboardType="phone-pad"
                 style={[styles.input, { flex: 1 }]}
               />
@@ -307,7 +293,9 @@ export default function HostSignupWizard() {
         return (
           <View>
             <Text style={styles.heading}>Step 2: Capture ID Photo</Text>
-            <Text style={styles.label}>Please take a clear photo of your government-issued ID</Text>
+            <Text style={styles.label}>
+              Please take a clear photo of your government-issued ID
+            </Text>
             <Button title="Take Photo" onPress={takePhoto} color="#70d7c7" />
             <Text style={styles.info}>
               {docUri ? `Photo captured: ${docUri}` : "No photo captured yet."}
@@ -349,7 +337,7 @@ export default function HostSignupWizard() {
           <View>
             <Text style={styles.heading}>Step 4: Review & Submit</Text>
             <Text style={styles.info}>Full Name: {fullName}</Text>
-            <Text style={styles.info}>Phone: +{callingCode} {phone}</Text>
+            <Text style={styles.info}>Phone: {phone}</Text>
             <Text style={styles.info}>ID Photo: {docUri || "None"}</Text>
             <Text style={styles.info}>
               Terms Accepted: {acceptTerms ? "Yes" : "No"}
@@ -389,7 +377,13 @@ export default function HostSignupWizard() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#fff", padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 15, textAlign: "center", color: "#333" },
+  title: {
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 15,
+    textAlign: "center",
+    color: "#333",
+  },
   body: { fontSize: 16, textAlign: "center", color: "#333", marginBottom: 20 },
   heading: { fontSize: 18, fontWeight: "600", color: "#333", marginBottom: 10 },
   label: { fontSize: 16, marginBottom: 5, color: "#555" },
@@ -404,8 +398,6 @@ const styles = StyleSheet.create({
     color: "#333",
   },
   phoneRow: { flexDirection: "row", alignItems: "center", marginBottom: 15 },
-  countryPicker: { marginRight: 10 },
-  callingCode: { marginRight: 10, fontSize: 16, color: "#333" },
   info: { fontSize: 14, color: "#333", marginBottom: 5 },
   termsRow: { flexDirection: "row", alignItems: "center", marginVertical: 10 },
   termsText: { fontSize: 14, color: "#333", marginBottom: 10 },

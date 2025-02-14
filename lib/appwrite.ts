@@ -236,7 +236,18 @@ export async function getCurrentUserId() {
  */
 export async function getDailyPricesForProperty(propertyId: string): Promise<Record<string, number>> {
   try {
-    return {};
+    // Example: fetch documents from your price adjustments collection
+    const response = await databases.listDocuments(
+      config.databaseId,
+      config.priceAdjustmentsId,
+      [Query.equal("propertyId", propertyId)]
+    );
+    const dailyPrices: Record<string, number> = {};
+    // Assuming each document contains a "date" and "overridePrice" field
+    response.documents.forEach((doc) => {
+      dailyPrices[doc.date] = doc.overridePrice;
+    });
+    return dailyPrices;
   } catch (error) {
     console.error("❌ Error fetching daily prices:", error);
     return {};

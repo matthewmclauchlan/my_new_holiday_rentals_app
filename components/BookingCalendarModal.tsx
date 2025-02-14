@@ -1,5 +1,4 @@
-// components/BookingCalendarModal.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Modal,
   View,
@@ -14,22 +13,37 @@ import {
   Dimensions,
   Platform,
   Image,
+  ViewStyle,
+  TextStyle,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import {
-  createBooking,
-  getCurrentUser,
   getBookingsForProperty,
   getDailyPricesForProperty,
+  getBookingRulesForProperty,
+  getHouseRulesForProperty,
+  getPriceRulesForProperty,
+  getPriceAdjustmentsForProperty,
 } from "@/lib/appwrite";
+
+// Interface for the price rules document.
+interface PriceRulesData {
+  basePricePerNight: number;
+  basePricePerNightWeekend: number;
+  weeklyDiscount?: number;
+  monthlyDiscount?: number;
+  cleaningFee?: number;
+  petFee?: number;
+  propertyId: string;
+}
 
 interface BookingCalendarModalProps {
   visible: boolean;
   onClose: () => void;
   propertyId: string;
-  propertyPrice: number;
-  maxGuests: number;       // Maximum guests allowed (excluding pets)
-  allowPets: boolean;      // Whether pets are allowed at the property
+  propertyPrice: number; // Fallback base price if price rules aren't available
+  maxGuests: number; // Default maximum guests allowed (excluding pets)
+  allowPets: boolean; // Default whether pets are allowed at the property
   onConfirm: (
     startDate: string,
     endDate: string,
@@ -53,6 +67,35 @@ const getDatesInRange = (startDate: string, endDate: string): string[] => {
   return dates;
 };
 
+// Define an interface for the custom day component props.
+interface DayProps {
+  date: {
+    dateString: string;
+    day: number;
+    month: number;
+    year: number;
+  };
+  state: string;
+  price?: number; // Optional override price to display
+}
+
+// Define interfaces for booking rules and house rules.
+interface BookingRules {
+  minStay: number;
+  maxStay: number;
+  advanceNotice: number;
+}
+
+interface HouseRules {
+  propertyId: string;
+  userId: string;
+  checkIn: string;
+  checkOut: string;
+  petsAllowed: boolean;
+  guestsMax: number;
+  smokingAllowed: boolean;
+}
+
 const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
   visible,
   onClose,
@@ -62,10 +105,14 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
   allowPets,
   onConfirm,
 }) => {
-  // State for booked/blocked dates and daily prices.
+  // State for bookings, price adjustments, and rules.
   const [bookedDates, setBookedDates] = useState<string[]>([]);
   const [blockedDates, setBlockedDates] = useState<string[]>([]);
+  const [overridePrices, setOverridePrices] = useState<Record<string, number>>({});
   const [prices, setPrices] = useState<Record<string, number>>({});
+  const [bookingRules, setBookingRules] = useState<BookingRules | null>(null);
+  const [houseRules, setHouseRules] = useState<HouseRules | null>(null);
+  const [priceRulesData, setPriceRulesData] = useState<PriceRulesData | null>(null);
   // Date selection state.
   const [selectedStartDate, setSelectedStartDate] = useState<string | null>(null);
   const [selectedEndDate, setSelectedEndDate] = useState<string | null>(null);
@@ -75,13 +122,45 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
   const [infants, setInfants] = useState<string>("0");
   const [pets, setPets] = useState<string>("0");
 
-  // When modal opens, fetch bookings and daily prices.
+  // State for visual warnings.
+  const [warningMessage, setWarningMessage] = useState<string>("");
+
+  // Today's date in YYYY-MM-DD format.
+  const today = new Date().toISOString().split("T")[0];
+
+  // When modal opens, fetch all necessary data.
   useEffect(() => {
     const fetchData = async () => {
       try {
         const bookings = await getBookingsForProperty(propertyId);
+        // Fetch override prices and normalize the date.
+        const adjustmentsArray = await getPriceAdjustmentsForProperty(propertyId);
+        const adjustments: Record<string, number> = {};
+        adjustmentsArray.forEach((doc: any) => {
+          if (doc.date && doc.overridePrice !== undefined) {
+            // Normalize the date to "YYYY-MM-DD"
+            const normalizedDate = new Date(doc.date).toISOString().split("T")[0];
+            adjustments[normalizedDate] = doc.overridePrice;
+          }
+        });
+        setOverridePrices(adjustments);
+
+        // Fetch daily prices (if any).
         const dailyPrices = await getDailyPricesForProperty(propertyId);
         setPrices(dailyPrices);
+
+        const rules = await getBookingRulesForProperty(propertyId);
+        const hr = await getHouseRulesForProperty(propertyId);
+        const pr = await getPriceRulesForProperty(propertyId);
+        setPriceRulesData(pr);
+        if (rules) {
+          setBookingRules({
+            minStay: rules.minStay,
+            maxStay: rules.maxStay,
+            advanceNotice: rules.advanceNotice,
+          });
+        }
+        setHouseRules(hr);
         const allBooked = bookings.flatMap((booking: any) =>
           getDatesInRange(booking.startDate, booking.endDate)
         );
@@ -100,14 +179,34 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
       setChildren("0");
       setInfants("0");
       setPets("0");
+      setWarningMessage("");
     }
   }, [visible, propertyId]);
 
-  // Helper: Reset marking for unavailable dates.
-  const resetMarked = (): Record<string, any> => {
-    const reset: Record<string, any> = {};
+  // Determine allowed max guests from house rules if available, else fallback.
+  const allowedMaxGuests = houseRules ? houseRules.guestsMax : maxGuests;
+
+  // Helper: Compute the total number of guests (excluding pets) from state.
+  const getTotalGuests = () =>
+    parseInt(adults, 10) + parseInt(children, 10) + parseInt(infants, 10);
+
+  // Helper: Compute the default price for a given date using price rules.
+  const computeDefaultPrice = (dateStr: string): number => {
+    if (priceRulesData) {
+      const dateObj = new Date(dateStr);
+      const day = dateObj.getDay();
+      return day === 0 || day === 6
+        ? priceRulesData.basePricePerNightWeekend
+        : priceRulesData.basePricePerNight;
+    }
+    return propertyPrice;
+  };
+
+  // Memoize marking for booked and blocked dates.
+  const markedDates = useMemo(() => {
+    const marks: Record<string, any> = {};
     bookedDates.forEach((date) => {
-      reset[date] = {
+      marks[date] = {
         disabled: true,
         disableTouchEvent: true,
         customStyles: {
@@ -117,7 +216,7 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
       };
     });
     blockedDates.forEach((date) => {
-      reset[date] = {
+      marks[date] = {
         disabled: true,
         disableTouchEvent: true,
         customStyles: {
@@ -126,17 +225,76 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
         },
       };
     });
-    return reset;
+    return marks;
+  }, [bookedDates, blockedDates]);
+
+  // Helper: Show a warning message banner.
+  const showWarning = (message: string) => {
+    setWarningMessage(message);
+    setTimeout(() => {
+      setWarningMessage("");
+    }, 3000);
   };
 
-  // Custom dayComponent for the Calendar.
-  const renderDay = (props: any) => {
-    const { date, state } = props;
+  // Memoized onDayPress handler that enforces booking rules.
+  const onDayPress = useCallback(
+    (date: { dateString: string; day: number; month: number; year: number }) => {
+      const dateStr = date.dateString;
+      if (
+        bookedDates.includes(dateStr) ||
+        blockedDates.includes(dateStr) ||
+        new Date(dateStr) < new Date(today)
+      ) {
+        return;
+      }
+      const minStayRule = bookingRules ? bookingRules.minStay : 1;
+      const maxStayRule = bookingRules ? bookingRules.maxStay : Infinity;
+      const advanceNoticeRule = bookingRules ? bookingRules.advanceNotice : 0;
+
+      if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
+        const advanceDate = new Date();
+        advanceDate.setDate(advanceDate.getDate() + advanceNoticeRule);
+        if (new Date(dateStr) < advanceDate) {
+          showWarning(`This property requires at least ${advanceNoticeRule} day(s) advance notice.`);
+          return;
+        }
+        setSelectedStartDate(dateStr);
+        setSelectedEndDate(null);
+        return;
+      }
+
+      if (selectedStartDate && !selectedEndDate) {
+        if (new Date(dateStr) <= new Date(selectedStartDate)) {
+          setSelectedStartDate(dateStr);
+          return;
+        }
+        const diffInTime =
+          new Date(dateStr).getTime() - new Date(selectedStartDate).getTime();
+        const diffDays = Math.floor(diffInTime / (1000 * 3600 * 24));
+        if (diffDays < minStayRule) {
+          showWarning(`This property requires a minimum stay of ${minStayRule} night(s).`);
+          return;
+        }
+        if (diffDays > maxStayRule) {
+          showWarning(`This property allows a maximum stay of ${maxStayRule} night(s).`);
+          return;
+        }
+        setSelectedEndDate(dateStr);
+      }
+    },
+    [bookedDates, blockedDates, selectedStartDate, selectedEndDate, today, bookingRules]
+  );
+
+  // Custom day component.
+  const RenderDay: React.FC<DayProps> = React.memo((props: DayProps) => {
+    const { date, state, price } = props;
     const dateStr = date.dateString;
+    const isPast = new Date(dateStr) < new Date(today);
     const isUnavailable =
-      bookedDates.includes(dateStr) || blockedDates.includes(dateStr);
-    // Default custom styles from resetMarked.
-    let customStyles = resetMarked()[dateStr]?.customStyles || {};
+      bookedDates.includes(dateStr) ||
+      blockedDates.includes(dateStr) ||
+      isPast;
+    let customStyles = markedDates[dateStr]?.customStyles || {};
     if (!isUnavailable) {
       if (selectedStartDate && !selectedEndDate && dateStr === selectedStartDate) {
         customStyles = {
@@ -162,6 +320,11 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
           };
         }
       }
+    } else {
+      customStyles = {
+        container: { backgroundColor: "#f0f0f0" },
+        text: { ...styles.dayText, color: "#aaa" },
+      };
     }
     return (
       <TouchableOpacity
@@ -170,33 +333,22 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
         style={[styles.dayContainer, customStyles.container]}
       >
         <Text style={[styles.dayText, customStyles.text]}>{date.day}</Text>
+        {!isUnavailable && (
+          <Text style={styles.priceText}>
+            $
+            {overridePrices[dateStr] !== undefined
+              ? overridePrices[dateStr].toFixed(2)
+              : price !== undefined
+              ? price.toFixed(2)
+              : priceRulesData
+              ? computeDefaultPrice(dateStr).toFixed(2)
+              : propertyPrice.toFixed(2)}
+          </Text>
+        )}
       </TouchableOpacity>
     );
-  };
+  });
 
-  // Handle day press for selecting a date range.
-  const onDayPress = (date: { dateString: string; day: number; month: number; year: number }) => {
-    const dateStr = date.dateString;
-    // Do not allow selection if unavailable.
-    if (bookedDates.includes(dateStr) || blockedDates.includes(dateStr)) return;
-    // If no start date is selected or both dates are already selected, set this as new start.
-    if (!selectedStartDate || (selectedStartDate && selectedEndDate)) {
-      setSelectedStartDate(dateStr);
-      setSelectedEndDate(null);
-      return;
-    }
-    // If a start date is already selected but no end date, then set the end date if valid.
-    if (selectedStartDate && !selectedEndDate) {
-      if (new Date(dateStr) <= new Date(selectedStartDate)) {
-        // Reset the start date if the tapped date is before the current start.
-        setSelectedStartDate(dateStr);
-        return;
-      }
-      setSelectedEndDate(dateStr);
-    }
-  };
-
-  // When Confirm Booking is pressed, validate and call onConfirm.
   const handleConfirmBooking = () => {
     if (!selectedStartDate || !selectedEndDate) {
       Alert.alert("Error", "Please select a valid date range.");
@@ -210,12 +362,22 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
       Alert.alert("Error", "There must be at least one adult.");
       return;
     }
-    if ((numAdults + numChildren + numInfants) > maxGuests) {
-      Alert.alert("Error", `The total number of guests (adults, children, infants) cannot exceed ${maxGuests}.`);
+    if (getTotalGuests() > allowedMaxGuests) {
+      Alert.alert(
+        "Error",
+        `The total number of guests (adults, children, infants) cannot exceed ${allowedMaxGuests}.`
+      );
       return;
     }
-    onConfirm(selectedStartDate, selectedEndDate, { adults: numAdults, children: numChildren, infants: numInfants, pets: numPets });
+    onConfirm(selectedStartDate, selectedEndDate, {
+      adults: numAdults,
+      children: numChildren,
+      infants: numInfants,
+      pets: numPets,
+    });
   };
+
+  const petsAllowed = houseRules ? houseRules.petsAllowed : allowPets;
 
   return (
     <Modal visible={visible} animationType="slide" transparent={false}>
@@ -226,7 +388,6 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
       >
         <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
           <View style={styles.modalContainer}>
-            {/* Header with a close button using the cross icon from assets */}
             <View style={styles.header}>
               <TouchableOpacity
                 onPress={onClose}
@@ -239,6 +400,11 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
                 />
               </TouchableOpacity>
             </View>
+            {warningMessage ? (
+              <View style={styles.warningBanner}>
+                <Text style={styles.warningText}>{warningMessage}</Text>
+              </View>
+            ) : null}
             <ScrollView
               contentContainerStyle={styles.contentContainer}
               keyboardShouldPersistTaps="handled"
@@ -246,79 +412,141 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
               <Text style={styles.modalTitle}>Choose Dates</Text>
               <View style={styles.calendarContainer}>
                 <Calendar
-                  current={new Date().toISOString().split("T")[0]}
-                  minDate={new Date().toISOString().split("T")[0]}
+                  current={today}
+                  minDate={today}
                   onDayPress={onDayPress}
-                  dayComponent={renderDay}
+                  dayComponent={(props) => (
+                    <RenderDay
+                      {...props}
+                      price={
+                        overridePrices[props.date.dateString] ??
+                        prices[props.date.dateString]
+                      }
+                    />
+                  )}
                   markingType="custom"
-                  hideExtraDays={true} // Only show days for the current month.
+                  hideExtraDays={true}
                 />
               </View>
-              {/* Guest Information Section */}
               <View style={styles.guestInfo}>
                 <Text style={styles.guestInfoTitle}>Guest Information</Text>
-                <Text style={styles.maxGuestText}>Max Guests (excluding pets): {maxGuests}</Text>
-
+                <Text style={styles.maxGuestText}>
+                  Max Guests (excluding pets): {allowedMaxGuests}
+                </Text>
                 {/* Adults Stepper */}
                 <View style={styles.guestRow}>
                   <Text style={styles.guestLabel}>Adults:</Text>
                   <View style={styles.stepperContainer}>
                     <TouchableOpacity
                       style={styles.stepperButton}
-                      onPress={() => setAdults(String(Math.max(1, parseInt(adults, 10) - 1)))}
+                      onPress={() =>
+                        setAdults(String(Math.max(1, parseInt(adults, 10) - 1)))
+                      }
                     >
-                      <Image source={require(".././assets/icons/minus.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/minus.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{adults}</Text>
                     <TouchableOpacity
                       style={styles.stepperButton}
-                      onPress={() => setAdults(String(parseInt(adults, 10) + 1))}
+                      onPress={() => {
+                        if (
+                          parseInt(adults, 10) +
+                            parseInt(children, 10) +
+                            parseInt(infants, 10) <
+                          allowedMaxGuests
+                        ) {
+                          setAdults(String(parseInt(adults, 10) + 1));
+                        } else {
+                          showWarning(`Total guests cannot exceed ${allowedMaxGuests}.`);
+                        }
+                      }}
                     >
-                      <Image source={require(".././assets/icons/add.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/add.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
-
                 {/* Children Stepper */}
                 <View style={styles.guestRow}>
                   <Text style={styles.guestLabel}>Children:</Text>
                   <View style={styles.stepperContainer}>
                     <TouchableOpacity
                       style={styles.stepperButton}
-                      onPress={() => setChildren(String(Math.max(0, parseInt(children, 10) - 1)))}
+                      onPress={() =>
+                        setChildren(String(Math.max(0, parseInt(children, 10) - 1)))
+                      }
                     >
-                      <Image source={require(".././assets/icons/minus.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/minus.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{children}</Text>
                     <TouchableOpacity
                       style={styles.stepperButton}
-                      onPress={() => setChildren(String(parseInt(children, 10) + 1))}
+                      onPress={() => {
+                        if (
+                          parseInt(adults, 10) +
+                            parseInt(children, 10) +
+                            parseInt(infants, 10) <
+                          allowedMaxGuests
+                        ) {
+                          setChildren(String(parseInt(children, 10) + 1));
+                        } else {
+                          showWarning(`Total guests cannot exceed ${allowedMaxGuests}.`);
+                        }
+                      }}
                     >
-                      <Image source={require(".././assets/icons/add.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/add.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
-
                 {/* Infants Stepper */}
                 <View style={styles.guestRow}>
                   <Text style={styles.guestLabel}>Infants:</Text>
                   <View style={styles.stepperContainer}>
                     <TouchableOpacity
                       style={styles.stepperButton}
-                      onPress={() => setInfants(String(Math.max(0, parseInt(infants, 10) - 1)))}
+                      onPress={() =>
+                        setInfants(String(Math.max(0, parseInt(infants, 10) - 1)))
+                      }
                     >
-                      <Image source={require(".././assets/icons/minus.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/minus.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{infants}</Text>
                     <TouchableOpacity
                       style={styles.stepperButton}
-                      onPress={() => setInfants(String(parseInt(infants, 10) + 1))}
+                      onPress={() => {
+                        if (
+                          parseInt(adults, 10) +
+                            parseInt(children, 10) +
+                            parseInt(infants, 10) <
+                          allowedMaxGuests
+                        ) {
+                          setInfants(String(parseInt(infants, 10) + 1));
+                        } else {
+                          showWarning(`Total guests cannot exceed ${allowedMaxGuests}.`);
+                        }
+                      }}
                     >
-                      <Image source={require(".././assets/icons/add.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/add.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
-
                 {/* Pets Stepper */}
                 <View style={styles.guestRow}>
                   <Text style={styles.guestLabel}>Pets:</Text>
@@ -326,27 +554,39 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
                     <TouchableOpacity
                       style={[
                         styles.stepperButton,
-                        !allowPets && styles.disabledButton
+                        !petsAllowed && styles.disabledButton,
                       ]}
-                      onPress={() => allowPets && setPets(String(Math.max(0, parseInt(pets, 10) - 1)))}
-                      disabled={!allowPets}
+                      onPress={() =>
+                        petsAllowed &&
+                        setPets(String(Math.max(0, parseInt(pets, 10) - 1)))
+                      }
+                      disabled={!petsAllowed}
                     >
-                      <Image source={require(".././assets/icons/minus.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/minus.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                     <Text style={styles.stepperValue}>{pets}</Text>
                     <TouchableOpacity
                       style={[
                         styles.stepperButton,
-                        !allowPets && styles.disabledButton
+                        !petsAllowed && styles.disabledButton,
                       ]}
-                      onPress={() => allowPets && setPets(String(parseInt(pets, 10) + 1))}
-                      disabled={!allowPets}
+                      onPress={() => {
+                        if (petsAllowed) {
+                          setPets(String(parseInt(pets, 10) + 1));
+                        }
+                      }}
+                      disabled={!petsAllowed}
                     >
-                      <Image source={require(".././assets/icons/add.png")} style={styles.stepperIcon} />
+                      <Image
+                        source={require(".././assets/icons/add.png")}
+                        style={styles.stepperIcon}
+                      />
                     </TouchableOpacity>
                   </View>
                 </View>
-
               </View>
               <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmBooking}>
                 <Text style={styles.confirmButtonText}>Save</Text>
@@ -367,7 +607,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   header: {
-    paddingTop: 20, // Pushed down so the icon isn't at the very top.
+    paddingTop: 20,
     padding: 10,
     alignItems: "flex-start",
   },
@@ -381,7 +621,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     flexGrow: 1,
     padding: 20,
-    paddingBottom: 50, // Extra bottom padding so that the Confirm button is not hidden.
+    paddingBottom: 50,
   },
   modalTitle: {
     fontSize: 24,
@@ -389,9 +629,8 @@ const styles = StyleSheet.create({
     marginBottom: 15,
     textAlign: "center",
   },
-  // Updated calendarContainer with a fixed height for better UX.
   calendarContainer: {
-    height: 400, // Fixed height to ensure all days are visible on a 31-day month.
+    height: 400,
     marginBottom: 20,
   },
   dayContainer: {
@@ -400,6 +639,8 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     margin: 2,
+    borderWidth: 1,
+    borderColor: "#ccc",
   },
   dayText: {
     fontSize: 16,
@@ -407,9 +648,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   unavailableText: {
-    textDecorationStyle: "solid",
-    textDecorationColor: "black",
     fontWeight: "bold",
+    color: "#888",
   },
   disabledText: {
     color: "#ccc",
@@ -431,6 +671,11 @@ const styles = StyleSheet.create({
     height: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+  priceText: {
+    fontSize: 10,
+    color: "#444",
+    marginTop: 2,
   },
   guestInfo: {
     marginTop: 20,
@@ -460,7 +705,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
   },
-  /* New Stepper Styles */
   stepperContainer: {
     flexDirection: "row",
     alignItems: "center",
@@ -503,5 +747,17 @@ const styles = StyleSheet.create({
     color: "#555",
     fontSize: 18,
     textAlign: "center",
+  },
+  warningBanner: {
+    backgroundColor: "#ffe5e5",
+    padding: 10,
+    marginHorizontal: 20,
+    borderRadius: 5,
+    marginBottom: 10,
+  },
+  warningText: {
+    color: "#cc0000",
+    textAlign: "center",
+    fontSize: 14,
   },
 });

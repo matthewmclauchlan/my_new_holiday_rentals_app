@@ -1,5 +1,3 @@
-// app/(host)/hostTabs/hostCalendarPage.tsx
-
 import React, { useState, useEffect, useRef, useCallback, memo } from "react";
 import {
   View,
@@ -9,9 +7,12 @@ import {
   StyleSheet,
   ScrollView,
   Dimensions,
+  Image,
+  SafeAreaView,
 } from "react-native";
 import { Modalize } from "react-native-modalize";
 import PricingCalendarBottomSheet from "../../../components/PricingCalendarBottomSheet";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPropertiesByUser,
   getPriceRulesForProperty,
@@ -19,13 +20,14 @@ import {
   getPriceAdjustmentsForProperty,
   getCurrentUserId,
 } from "../../../lib/appwrite";
-import { handleSaveAdjustments } from "../../../lib/priceHelpers"; // Ensure this is correctly imported
+import { handleSaveAdjustments } from "../../../lib/priceHelpers";
 
-// Define the expected shape for a Property.
+// Updated interface to include images field.
 interface Property {
   $id: string;
   name: string;
   propertyId: string;
+  images?: string[]; // stringified array of image objects
 }
 
 // Define the shape of the combined pricing data.
@@ -34,12 +36,12 @@ interface PricingData {
     basePricePerNight: number;
     basePricePerNightWeekend: number;
   };
-  bookedDates: string[]; // From bookings
-  priceOverrides: Record<string, number>; // Merged adjustments from PriceAdjustments collection (normalized)
-  blockedDates: string[]; // Normalized blocked dates
+  bookedDates: string[];
+  priceOverrides: Record<string, number>;
+  blockedDates: string[];
 }
 
-// Helper to generate an array of dates (YYYY-MM-DD) between two dates (inclusive)
+// Helper functions to generate and normalize dates.
 const getDatesRange = (start: string, end: string): string[] => {
   const startDate = new Date(start);
   const endDate = new Date(end);
@@ -52,12 +54,14 @@ const getDatesRange = (start: string, end: string): string[] => {
   return dates;
 };
 
-// Helper to normalize a date to "YYYY-MM-DD" format.
 const normalizeDate = (date: string): string => {
   return new Date(date).toISOString().split("T")[0];
 };
 
 const HostCalendarPage: React.FC = () => {
+  const router = useRouter();
+  const { id } = useLocalSearchParams<{ id: string }>();
+
   const [properties, setProperties] = useState<Property[]>([]);
   const [selectedProperty, setSelectedProperty] = useState<string | null>(null);
   const [pricingData, setPricingData] = useState<PricingData | null>(null);
@@ -80,6 +84,7 @@ const HostCalendarPage: React.FC = () => {
           $id: doc.$id,
           name: doc.name,
           propertyId: doc.propertyId || doc.$id,
+          images: doc.images, // Preserve images array (stringified objects)
         }));
         setProperties(mappedProperties);
         console.log("Mapped properties:", mappedProperties);
@@ -90,16 +95,14 @@ const HostCalendarPage: React.FC = () => {
     fetchProperties();
   }, []);
 
-  // When a property is selected, fetch its price rules, bookings, and adjustments.
+  // When a property is selected, fetch its pricing data.
   const onSelectProperty = async (propertyId: string) => {
     setSelectedProperty(propertyId);
     setLoading(true);
     try {
-      // Fetch base price rules.
       const priceRules = await getPriceRulesForProperty(propertyId);
       console.log("Fetched PriceRules:", priceRules);
 
-      // Fetch bookings for this property.
       const bookings = await getBookingsForProperty(propertyId);
       console.log("Fetched bookings:", bookings);
       let allBookedDates: string[] = [];
@@ -114,11 +117,8 @@ const HostCalendarPage: React.FC = () => {
       allBookedDates = Array.from(new Set(allBookedDates));
       console.log("Calculated booked dates:", allBookedDates);
 
-      // Fetch adjustments from the PriceAdjustments collection.
       const adjustments = await getPriceAdjustmentsForProperty(propertyId);
       console.log("Fetched adjustments (raw):", adjustments);
-
-      // Build a record for priceOverrides and an array for blockedDates (all normalized).
       const priceOverrides: Record<string, number> = {};
       const blockedDates: string[] = [];
       adjustments.forEach((doc: any) => {
@@ -133,7 +133,6 @@ const HostCalendarPage: React.FC = () => {
       console.log("Constructed normalized priceOverrides:", priceOverrides);
       console.log("Constructed normalized blockedDates:", blockedDates);
 
-      // Set combined pricing data.
       const combinedPricingData: PricingData = {
         priceRules: priceRules!,
         bookedDates: allBookedDates,
@@ -149,7 +148,6 @@ const HostCalendarPage: React.FC = () => {
     setLoading(false);
   };
 
-  // Memoize the onSave callback to ensure its reference is stable.
   const onSaveOverridesCallback = useCallback(
     (data: { priceOverrides: Record<string, number>; blockedDates: string[] }) => {
       console.log("onSave callback received data:", data);
@@ -160,32 +158,71 @@ const HostCalendarPage: React.FC = () => {
     [selectedProperty]
   );
 
-  // Memoize PricingCalendarBottomSheet to avoid unnecessary re-renders.
   const MemoizedPricingCalendarBottomSheet = memo(PricingCalendarBottomSheet);
 
+  // Function to compute the main image URL from property.images array.
+  const getPropertyImageSource = (prop: Property) => {
+    let imageSource = require('@/assets/images/japan.png'); // fallback
+    if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
+      try {
+        const parsedImages = prop.images.map((imgString: string) =>
+          JSON.parse(imgString)
+        );
+        // Find the main image or take the first image.
+        const mainImg = parsedImages.find((img: any) => img.isMain) || parsedImages[0];
+        if (mainImg) {
+          imageSource = { uri: mainImg.remoteUrl || mainImg.localUri };
+        }
+      } catch (err) {
+        console.error("Error parsing property images", err);
+      }
+    }
+    return imageSource;
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Select a Property:</Text>
-      <ScrollView>
+    <SafeAreaView style={styles.safeArea}>
+      {/* Header with Close Button */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.pageCloseButton} onPress={() => router.back()}>
+          <Image source={require('@/assets/icons/cross.png')} style={styles.pageCloseIcon} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Host Calendar</Text>
+      </View>
+
+      {/* Render each property as a card */}
+      <ScrollView style={styles.propertyList}>
         {properties.map((prop) => (
           <TouchableOpacity
             key={prop.$id}
-            style={styles.propertyButton}
+            style={styles.propertyCard}
             onPress={() => onSelectProperty(prop.$id)}
           >
-            <Text style={styles.propertyButtonText}>{prop.name}</Text>
+            <View style={styles.cardContent}>
+              <Image
+                source={getPropertyImageSource(prop)}
+                style={styles.propertyImage}
+              />
+              <Text style={styles.propertyCardText}>{prop.name}</Text>
+              <Image
+                source={require('@/assets/icons/edit.png')}
+                style={styles.editIcon}
+              />
+            </View>
           </TouchableOpacity>
         ))}
       </ScrollView>
       {loading && <ActivityIndicator size="large" color="#70d7c7" />}
+
       <Modalize
         ref={modalizeRef}
         modalHeight={Dimensions.get("window").height} // Full screen modal
         modalStyle={styles.modalStyle} // Remove rounded edges
       >
         <View style={styles.modalHeader}>
+          {/* Cross Icon in Modal Header */}
           <TouchableOpacity onPress={() => modalizeRef.current?.close()}>
-            <Text style={styles.closeButton}>X</Text>
+            <Image source={require('@/assets/icons/cross.png')} style={styles.modalCloseIcon} />
           </TouchableOpacity>
         </View>
         {pricingData && pricingData.priceRules && (
@@ -200,20 +237,67 @@ const HostCalendarPage: React.FC = () => {
           />
         )}
       </Modalize>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  title: { fontSize: 22, fontWeight: "bold", marginBottom: 10 },
-  propertyButton: {
-    padding: 15,
-    backgroundColor: "#e6f7ff",
-    marginBottom: 10,
-    borderRadius: 8,
+  safeArea: { flex: 1, backgroundColor: "#fff" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 10,
   },
-  propertyButtonText: { fontSize: 18, color: "#333" },
+  pageCloseButton: {
+    padding: 10,
+  },
+  pageCloseIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "#000",
+  },
+  headerTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    marginLeft: 10,
+  },
+  propertyList: {
+    flex: 1,
+    paddingHorizontal: 10,
+  },
+  propertyCard: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#ccc",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+    marginHorizontal: 10,
+  },
+  cardContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  propertyImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    marginRight: 10,
+    resizeMode: "cover",
+  },
+  propertyCardText: {
+    flex: 1,
+    fontSize: 18,
+    color: "#333",
+  },
+  editIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "#70d7c7",
+    marginLeft: 10,
+  },
   modalStyle: {
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
@@ -222,10 +306,10 @@ const styles = StyleSheet.create({
     padding: 10,
     alignItems: "flex-start",
   },
-  closeButton: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "red",
+  modalCloseIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "red",
   },
 });
 

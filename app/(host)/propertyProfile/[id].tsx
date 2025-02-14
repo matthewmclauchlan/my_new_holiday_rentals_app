@@ -820,67 +820,70 @@ const HostPropertyDetail = () => {
       </Modalize>
 
       {/* Modal for Editing Booking Rules */}
-      <Modalize ref={bookingRulesModalRef} modalHeight={350}>
-        <ScrollView contentContainerStyle={styles.modalContent}>
-          <Text style={styles.sheetTitle}>Edit Booking Rules</Text>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Min Stay (nights):</Text>
-            <TextInput
-              style={styles.inputField}
-              value={bookingRulesDetails.minStay}
-              placeholder="Enter min stay"
-              keyboardType="numeric"
-              onChangeText={(text) =>
-                setBookingRulesDetails((prev) => ({ ...prev, minStay: text }))
-              }
-            />
-          </View>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Max Stay (nights):</Text>
-            <TextInput
-              style={styles.inputField}
-              value={bookingRulesDetails.maxStay}
-              placeholder="Enter max stay"
-              keyboardType="numeric"
-              onChangeText={(text) =>
-                setBookingRulesDetails((prev) => ({ ...prev, maxStay: text }))
-              }
-            />
-          </View>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Advance Notice (days):</Text>
-            <TextInput
-              style={styles.inputField}
-              value={bookingRulesDetails.advanceNotice}
-              placeholder="Enter advance notice"
-              keyboardType="numeric"
-              onChangeText={(text) =>
-                setBookingRulesDetails((prev) => ({ ...prev, advanceNotice: text }))
-              }
-            />
-          </View>
-          <View style={styles.inputRow}>
-            <Text style={styles.inputLabel}>Instant Book:</Text>
-            <Switch
-              value={bookingRulesDetails.instantBook}
-              onValueChange={(val) =>
-                setBookingRulesDetails((prev) => ({ ...prev, instantBook: val }))
-              }
-            />
-          </View>
-          <SaveButton onPress={saveBookingRulesDetails} isSaving={isSavingBookingRules} title="Save Booking Rules" />
+<Modalize ref={bookingRulesModalRef} modalHeight={350}>
+  <ScrollView contentContainerStyle={styles.modalContent}>
+    <Text style={styles.sheetTitle}>Edit Booking Rules</Text>
+    <View style={styles.inputRow}>
+      <Text style={styles.inputLabel}>Min Stay (nights):</Text>
+      <TextInput
+        style={styles.inputField}
+        value={bookingRulesDetails.minStay}
+        placeholder="Enter min stay"
+        keyboardType="numeric"
+        onChangeText={(text) =>
+          setBookingRulesDetails((prev) => ({ ...prev, minStay: text }))
+        }
+      />
+    </View>
+    <View style={styles.inputRow}>
+      <Text style={styles.inputLabel}>Max Stay (nights):</Text>
+      <TextInput
+        style={styles.inputField}
+        value={bookingRulesDetails.maxStay}
+        placeholder="Enter max stay"
+        keyboardType="numeric"
+        onChangeText={(text) =>
+          setBookingRulesDetails((prev) => ({ ...prev, maxStay: text }))
+        }
+      />
+    </View>
+    <View style={styles.inputRow}>
+      <Text style={styles.inputLabel}>Advance Notice (days):</Text>
+      <TextInput
+        style={styles.inputField}
+        value={bookingRulesDetails.advanceNotice}
+        placeholder="Enter advance notice"
+        keyboardType="numeric"
+        onChangeText={(text) =>
+          setBookingRulesDetails((prev) => ({ ...prev, advanceNotice: text }))
+        }
+      />
+    </View>
+    <View style={styles.inputRow}>
+      <Text style={styles.inputLabel}>Instant Book:</Text>
+      <Switch
+        value={bookingRulesDetails.instantBook}
+        onValueChange={(val) =>
+          setBookingRulesDetails((prev) => ({ ...prev, instantBook: val }))
+        }
+      />
+    </View>
 
-          {/* Link to the Help Article */}
-<View style={{ marginTop: 20, alignItems: "center" }}>
-  <Link href="/help/how-instant-book-works">
-    <Text style={styles.helpLink}>
-      How Instant Book Works
-    </Text>
-  </Link>
-</View>
+    {/* Link to the Help Article placed directly below the Instant Book toggle */}
+    <View style={{ alignItems: "center", marginTop: 8 }}>
+      <Link href="/help/how-instant-book-works">
+        <Text style={styles.helpLink}>How Instant Book Works</Text>
+      </Link>
+    </View>
 
-        </ScrollView>
-      </Modalize>
+    <SaveButton
+      onPress={saveBookingRulesDetails}
+      isSaving={isSavingBookingRules}
+      title="Save Booking Rules"
+    />
+  </ScrollView>
+</Modalize>
+
 
       {/* Modal for Editing Cancellation Policy */}
       <Modalize ref={cancellationModalRef} modalHeight={windowHeight}>

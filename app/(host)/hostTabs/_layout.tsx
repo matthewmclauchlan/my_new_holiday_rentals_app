@@ -1,4 +1,3 @@
-// app/(host)/hostTabs/_layout.tsx
 import React from "react";
 import { Tabs } from "expo-router";
 import { View, Text, Image, StyleSheet } from "react-native";
@@ -17,7 +16,13 @@ const TabIcon: React.FC<TabIconProps> = ({ focused, icon, title }) => (
       style={[styles.icon, { tintColor: focused ? "#0061FF" : "#666876" }]}
       resizeMode="contain"
     />
-    <Text style={[styles.label, { color: focused ? "#0061FF" : "#666876" }]}>{title}</Text>
+    <Text
+      numberOfLines={1}
+      ellipsizeMode="tail"
+      style={[styles.label, { color: focused ? "#0061FF" : "#666876" }]}
+    >
+      {title}
+    </Text>
   </View>
 );
 
@@ -35,8 +40,8 @@ const HostTabsLayout = () => {
           borderTopColor: "#0061FF1A",
           borderTopWidth: 1,
           minHeight: 60,
-          paddingTop: 20, // add some bottom padding
-          paddingBottom: 10, // add some bottom padding
+          paddingTop: 10,
+          paddingBottom: 10,
         },
       }}
     >
@@ -76,7 +81,7 @@ const HostTabsLayout = () => {
           title: "Listings",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.listing} title="Listing" />
+            <TabIcon focused={focused} icon={icons.listing} title="Listings" />
           ),
         }}
       />
@@ -96,11 +101,10 @@ const HostTabsLayout = () => {
 
 const styles = StyleSheet.create({
   tabIconContainer: {
-    flex: 7,
     alignItems: "center",
     justifyContent: "center",
-    // Shift the icon container downwards within the tab bar:
-    transform: [{ translateY: 8 }],
+    // Optionally, you can set a fixed width if needed
+    width: 60,
   },
   icon: {
     width: 28,
@@ -110,7 +114,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginTop: 4,
     textAlign: "center",
-    flexWrap: "none",
+    flexWrap: "nowrap",
   },
 });
 

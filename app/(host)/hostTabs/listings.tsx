@@ -13,7 +13,7 @@ import { useRouter } from "expo-router";
 import { getPropertiesByUser } from "@/lib/appwrite";
 import { useGlobalContext } from "../../global-provider";
 
-// In case no media is provided, we fall back to a placeholder.
+// Fallback placeholder image for properties
 const localPlaceholder = require("../../../assets/images/no-result.png");
 
 const Listings = () => {
@@ -40,36 +40,41 @@ const Listings = () => {
     fetchProperties();
   }, [user]);
 
-  const renderItem = ({ item }: { item: any }) => {
-    // Try to use the "images" field (an array of stringified objects)
-    // to determine the main image.
-    let imageUrl = localPlaceholder;
-
+  // Function to extract the main image from the property images array.
+  const getPropertyImageSource = (item: any) => {
+    let imageSource = localPlaceholder;
     if (item.images && Array.isArray(item.images) && item.images.length > 0) {
       try {
         const parsedImages = item.images.map((imgString: string) =>
           JSON.parse(imgString)
         );
         // Look for the image marked as main; if not found, take the first image.
-        const mainImg = parsedImages.find((img: any) => img.isMain) || parsedImages[0];
+        const mainImg =
+          parsedImages.find((img: any) => img.isMain) || parsedImages[0];
         if (mainImg) {
-          imageUrl = { uri: mainImg.remoteUrl || mainImg.localUri };
+          imageSource = { uri: mainImg.remoteUrl || mainImg.localUri };
         }
       } catch (err) {
         console.error("Error parsing property images", err);
       }
     }
-    
+    return imageSource;
+  };
+
+  const renderItem = ({ item }: { item: any }) => {
+    const imageSource = getPropertyImageSource(item);
     return (
       <TouchableOpacity
-        style={styles.card}
-        onPress={() =>
-          router.push(`../propertyProfile/${item.$id}`)
-        }
+        style={styles.propertyCard}
+        onPress={() => router.push(`../propertyProfile/${item.$id}`)}
       >
-        <Image source={imageUrl} style={styles.cardImage} />
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle}>{item.name}</Text>
+          <Image source={imageSource} style={styles.propertyImage} />
+          <Text style={styles.propertyCardText}>{item.name}</Text>
+          <Image
+            source={require('@/assets/icons/edit.png')}
+            style={styles.editIcon}
+          />
         </View>
       </TouchableOpacity>
     );
@@ -129,32 +134,38 @@ const styles = StyleSheet.create({
     marginTop: 20,
     fontSize: 16,
   },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
+  // Card styling (same as HostCalendarPage)
+  propertyCard: {
     backgroundColor: "#fff",
-    padding: 10,
-    marginBottom: 10,
     borderWidth: 1,
     borderColor: "#ccc",
-    // Removed rounded corners from card container if desired:
-    borderRadius: 0,
-  },
-  cardImage: {
-    width: 60,
-    height: 60,
-    // Apply curved corners to the image
     borderRadius: 8,
-    marginRight: 10,
+    padding: 10,
+    marginBottom: 10,
+    marginHorizontal: 10,
   },
   cardContent: {
-    flex: 1,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
-  cardTitle: {
+  propertyImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 10,
+    marginRight: 10,
+    resizeMode: "cover",
+  },
+  propertyCardText: {
+    flex: 1,
     fontSize: 18,
-    fontWeight: "bold",
     color: "#333",
+  },
+  editIcon: {
+    width: 24,
+    height: 24,
+    tintColor: "#70d7c7",
+    marginLeft: 10,
   },
   addListingContainer: {
     flexDirection: "row",

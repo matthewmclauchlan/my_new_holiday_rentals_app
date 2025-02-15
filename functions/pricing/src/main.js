@@ -1,6 +1,6 @@
 // calculateBookingPrice.js
 
-import { Client, Databases, Query } from 'node-appwrite';
+import { Client, Databases, Query, ID } from 'node-appwrite';
 
 // Initialize the Appwrite client using environment variables.
 const client = new Client();

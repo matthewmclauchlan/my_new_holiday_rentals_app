@@ -159,12 +159,12 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
 
   // Compute price range for a group.
   const getGroupPriceRange = (group: DateGroup): { min: number; max: number } => {
-    const prices = group.dates.map((date) =>
+    const pricesArr = group.dates.map((date) =>
       tempPriceOverrides.hasOwnProperty(date)
         ? tempPriceOverrides[date]
         : computeDefaultPrice(date)
     );
-    return { min: Math.min(...prices), max: Math.max(...prices) };
+    return { min: Math.min(...pricesArr), max: Math.max(...pricesArr) };
   };
 
   // Render override popup inputs.
@@ -273,7 +273,6 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
             ? tempPriceOverrides[date.dateString]
             : computeDefaultPrice(date.dateString);
           const isBooked = bookedDates.includes(date.dateString);
-          // Use the temporary blocked state for marking.
           const isBlocked = tempBlockedDates.includes(date.dateString);
           const isSelected = selectedDates.includes(date.dateString);
           const containerStyle: ViewStyle[] = [styles.dayContainer];
@@ -302,10 +301,14 @@ const PricingCalendarBottomSheet: React.FC<PricingCalendarBottomSheetProps> = ({
                   year: date.year,
                 })
               }
-              disabled={isBooked}
+              disabled={state === "disabled" || isBooked}
             >
-              <Text style={dayTextStyle}>{date.day}</Text>
-              <Text style={priceTextStyle}>${price}</Text>
+              <Text style={[styles.dayText, ...dayTextStyle]}>{date.day}</Text>
+              {!isBooked && (
+                <Text style={priceTextStyle}>
+                  ${typeof price === "number" ? price.toFixed(2) : "0.00"}
+                </Text>
+              )}
               {isBlocked && !isSelected && <Text style={styles.blockLabel}>Blocked</Text>}
             </TouchableOpacity>
           );
@@ -376,7 +379,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   crossButton: { fontSize: 18, fontWeight: "bold", color: "red" },
-  sheetTitle: { fontSize: 18, fontWeight: "bold" },
+  // Use only one definition for sheetTitle
+  sheetTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
   clearButton: { fontSize: 14, color: "#70d7c7" },
   groupRow: {
     flexDirection: "row",
@@ -419,18 +423,9 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { color: "#fff", fontSize: 16, fontWeight: "bold" },
   modalContent: { padding: 20 },
-  sheetTitle: { fontSize: 20, fontWeight: "bold", marginBottom: 20 },
   inputRow: { flexDirection: "row", alignItems: "center", marginVertical: 8 },
   inputLabel: { width: 130, fontSize: 16, color: "#333" },
-  inputField: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: "#ccc",
-    borderRadius: 8,
-    padding: 10,
-    fontSize: 16,
-  },
-  // Cancellation Policy Modal styles:
+  inputField: { flex: 1, borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 10, fontSize: 16 },
   cancellationModalContent: { padding: 20, paddingBottom: 80 },
   cancellationSaveContainer: { padding: 20, borderTopWidth: 1, borderColor: "#ccc", backgroundColor: "#fff" },
   policyCard: { borderWidth: 1, borderColor: "#ccc", padding: 12, marginBottom: 10, borderRadius: 8 },

@@ -13,8 +13,6 @@ import {
   Dimensions,
   Platform,
   Image,
-  ViewStyle,
-  TextStyle,
 } from "react-native";
 import { Calendar } from "react-native-calendars";
 import {
@@ -37,7 +35,7 @@ interface PriceRulesData {
   propertyId: string;
 }
 
-interface BookingCalendarModalProps {
+export interface BookingCalendarModalProps {
   visible: boolean;
   onClose: () => void;
   propertyId: string;
@@ -47,7 +45,8 @@ interface BookingCalendarModalProps {
   onConfirm: (
     startDate: string,
     endDate: string,
-    guests: { adults: number; children: number; infants: number; pets: number }
+    guests: { adults: number; children: number; infants: number; pets: number },
+    overridePrices: Record<string, number>
   ) => void;
 }
 
@@ -138,7 +137,6 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
         const adjustments: Record<string, number> = {};
         adjustmentsArray.forEach((doc: any) => {
           if (doc.date && doc.overridePrice !== undefined) {
-            // Normalize the date to "YYYY-MM-DD"
             const normalizedDate = new Date(doc.date).toISOString().split("T")[0];
             adjustments[normalizedDate] = doc.overridePrice;
           }
@@ -190,7 +188,7 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
   const getTotalGuests = () =>
     parseInt(adults, 10) + parseInt(children, 10) + parseInt(infants, 10);
 
-  // Helper: Compute the default price for a given date using price rules.
+  // Helper: Compute the default price for a given date using priceRulesData.
   const computeDefaultPrice = (dateStr: string): number => {
     if (priceRulesData) {
       const dateObj = new Date(dateStr);
@@ -295,6 +293,7 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
       blockedDates.includes(dateStr) ||
       isPast;
     let customStyles = markedDates[dateStr]?.customStyles || {};
+  
     if (!isUnavailable) {
       if (selectedStartDate && !selectedEndDate && dateStr === selectedStartDate) {
         customStyles = {
@@ -326,6 +325,17 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
         text: { ...styles.dayText, color: "#aaa" },
       };
     }
+  
+    // Compute finalPrice using our override, then daily price, then computed default, then fallback.
+    const finalPrice: number =
+      overridePrices[dateStr] ??
+      price ??
+      (priceRulesData ? computeDefaultPrice(dateStr) : propertyPrice) ??
+      0;
+  
+    // Debug log for finalPrice
+    // console.log(`Date ${dateStr} - finalPrice: ${finalPrice}`);
+  
     return (
       <TouchableOpacity
         onPress={() => onDayPress(date)}
@@ -335,19 +345,13 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
         <Text style={[styles.dayText, customStyles.text]}>{date.day}</Text>
         {!isUnavailable && (
           <Text style={styles.priceText}>
-            $
-            {overridePrices[dateStr] !== undefined
-              ? overridePrices[dateStr].toFixed(2)
-              : price !== undefined
-              ? price.toFixed(2)
-              : priceRulesData
-              ? computeDefaultPrice(dateStr).toFixed(2)
-              : propertyPrice.toFixed(2)}
+            ${typeof finalPrice === "number" ? finalPrice.toFixed(2) : "0.00"}
           </Text>
         )}
       </TouchableOpacity>
     );
   });
+  
 
   const handleConfirmBooking = () => {
     if (!selectedStartDate || !selectedEndDate) {
@@ -374,7 +378,7 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
       children: numChildren,
       infants: numInfants,
       pets: numPets,
-    });
+    }, overridePrices);
   };
 
   const petsAllowed = houseRules ? houseRules.petsAllowed : allowPets;
@@ -415,7 +419,7 @@ const BookingCalendarModal: React.FC<BookingCalendarModalProps> = ({
                   current={today}
                   minDate={today}
                   onDayPress={onDayPress}
-                  dayComponent={(props) => (
+                  dayComponent={(props: DayProps) => (
                     <RenderDay
                       {...props}
                       price={

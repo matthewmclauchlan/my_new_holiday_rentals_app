@@ -71,7 +71,7 @@ const HostTabsLayout = () => {
           title: "Bookings",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.bell} title="Bookings" />
+            <TabIcon focused={focused} icon={icons.bookings} title="Bookings" />
           ),
         }}
       />
@@ -91,7 +91,7 @@ const HostTabsLayout = () => {
           title: "Menu",
           headerShown: false,
           tabBarIcon: ({ focused }) => (
-            <TabIcon focused={focused} icon={icons.chat} title="Menu" />
+            <TabIcon focused={focused} icon={icons.menu} title="Menu" />
           ),
         }}
       />

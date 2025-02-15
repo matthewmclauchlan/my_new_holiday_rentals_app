@@ -33,6 +33,8 @@ import location from "@/assets/icons/location.png";
 import edit from "@/assets/icons/edit.png";
 import listing from "@/assets/icons/listing.png";
 import share from "@/assets/icons/share.png";
+import menu from "@/assets/icons/menu.png";
+import bookings from "@/assets/icons/bookings.png";
 
 
 export default {
@@ -71,5 +73,7 @@ export default {
   edit,
   listing,
   share,
+  menu,
+  bookings,
   
 };

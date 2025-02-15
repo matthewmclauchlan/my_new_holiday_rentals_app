@@ -1,12 +1,9 @@
-// app/(host)/hostTabs/BookingFlowSheet.tsx
-
 import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { Modalize } from 'react-native-modalize';
 import BookingCalendarModal from './BookingCalendarModal';
-import { getHouseRulesForProperty } from '@/lib/appwrite'; // Use your existing function
+import { getHouseRulesForProperty } from '@/lib/appwrite';
 import { getDatesInRange } from '@/lib/utils';
-
 
 export interface BookingFlowSheetRef {
   open: () => void;
@@ -20,7 +17,6 @@ export interface BookingFlowSheetProps {
 
 const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
   ({ onBook, property }, ref) => {
-    // Use full screen height for the modal.
     const snapPoint = Dimensions.get("window").height;
     const modalizeRef = React.useRef<Modalize>(null);
 
@@ -30,11 +26,8 @@ const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
     const [selectedGuests, setSelectedGuests] = useState<{ adults: number; children: number; infants: number; pets: number } | null>(null);
     const [isCalendarVisible, setCalendarVisible] = useState(false);
 
-    // State to hold house rules fetched for the property.
     const [houseRules, setHouseRules] = useState<any>(null);
-    // State to hold pricing breakdown returned from the pricing Cloud Function.
     const [pricingBreakdown, setPricingBreakdown] = useState<any>(null);
-    // Loading state for pricing calculations.
     const [pricingLoading, setPricingLoading] = useState(false);
 
     useImperativeHandle(ref, () => ({
@@ -50,35 +43,32 @@ const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
       setCalendarVisible(false);
     };
 
-    // Callback from the BookingCalendarModal.
+    // Updated onCalendarConfirm to receive overridePrices.
     const onCalendarConfirm = (
       startDate: string,
       endDate: string,
-      guests: { adults: number; children: number; infants: number; pets: number }
+      guests: { adults: number; children: number; infants: number; pets: number },
+      overridePrices: Record<string, number>
     ) => {
       setSelectedStartDate(startDate);
       setSelectedEndDate(endDate);
       setSelectedGuests(guests);
       closeCalendar();
       // Once dates and guest info are set, fetch the pricing breakdown.
-      fetchPricingDetails(startDate, endDate, guests);
+      fetchPricingDetails(startDate, endDate, guests, overridePrices);
     };
 
-    // Helper: Format a date range (for display).
-    const formatDateRange = (start: string, end: string) => {
+    // Helper: Format the date range (always returns a string).
+    const formatDateRange = (start: string, end: string): string => {
       const startDate = new Date(start);
       const endDate = new Date(end);
-      const optionsDay = { day: "numeric" } as const;
-      const optionsMonth = { month: "short" } as const;
-      if (startDate.getMonth() === endDate.getMonth()) {
-        return `${startDate.toLocaleDateString(undefined, optionsDay)}-${endDate.toLocaleDateString(undefined, optionsDay)} ${endDate.toLocaleDateString(undefined, optionsMonth)}`;
-      } else {
-        return `${startDate.toLocaleDateString(undefined, { day: "numeric", month: "short" })} - ${endDate.toLocaleDateString(undefined, { day: "numeric", month: "short" })}`;
-      }
+      return `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`;
     };
 
-    // Helper: Create a guest summary string.
-    const formatGuestSummary = (guests: { adults: number; children: number; infants: number; pets: number }) => {
+    // Helper: Format guest summary.
+    const formatGuestSummary = (
+      guests: { adults: number; children: number; infants: number; pets: number }
+    ): string => {
       const parts: string[] = [];
       if (guests.adults > 0) parts.push(`${guests.adults} adult${guests.adults > 1 ? "s" : ""}`);
       if (guests.children > 0) parts.push(`${guests.children} child${guests.children > 1 ? "ren" : ""}`);
@@ -87,7 +77,6 @@ const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
       return parts.join(", ");
     };
 
-    // Fetch house rules using the property's houseRulesId.
     useEffect(() => {
       if (property && property.houseRulesId) {
         let houseRulesId = property.houseRulesId;
@@ -102,22 +91,34 @@ const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
       }
     }, [property]);
 
-    // Determine maxGuests and allowPets from the fetched house rules.
-    const maxGuests = houseRules?.guestsMax || 4;
-    const allowPets = houseRules?.petsAllowed ?? false;
+    // Define maxGuests and allowPets based on fetched house rules.
+    const maxGuestsVal = houseRules?.guestsMax || 4;
+    const allowPetsVal = houseRules?.petsAllowed ?? false;
 
     // Function to call the pricing Cloud Function.
-    async function fetchPricingDetails(startDate: string, endDate: string, guests: { adults: number; children: number; infants: number; pets: number }) {
+    async function fetchPricingDetails(
+      startDate: string,
+      endDate: string,
+      guests: { adults: number; children: number; infants: number; pets: number },
+      overridePrices: Record<string, number>
+    ) {
       if (!property || !property.$id) return;
-      // Build bookingDates array from start and end dates.
-      // Assuming bookingDates are inclusive.
       const bookingDates = getDatesInRange(startDate, endDate);
+    
+      // Convert each override key from "YYYY-MM-DD" to the full ISO string your function expects.
+      // (Assuming the time is always midnight)
+      const formattedOverrides: Record<string, number> = {};
+      Object.keys(overridePrices).forEach((key) => {
+        formattedOverrides[`${key}T00:00:00.000+00:00`] = overridePrices[key];
+      });
+    
       const payload = {
-        propertyId: property.$id, // or propertyId from the property
+        propertyId: property.$id,
         bookingDates,
         guestInfo: guests,
+        overridePrices: formattedOverrides, // Send the formatted overrides
       };
-
+    
       setPricingLoading(true);
       try {
         const response = await fetch(
@@ -213,12 +214,21 @@ const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
                 <ActivityIndicator size="small" color="#70d7c7" />
               ) : pricingBreakdown ? (
                 <View>
-                  {/* Render a summary. Customize as needed */}
-                  <Text style={styles.detailText}>Subtotal: ${pricingBreakdown.subTotal.toFixed(2)}</Text>
-                  <Text style={styles.detailText}>Cleaning Fee: ${pricingBreakdown.cleaningFee.toFixed(2)}</Text>
-                  <Text style={styles.detailText}>Pet Fee: ${pricingBreakdown.petFee.toFixed(2)}</Text>
-                  <Text style={styles.detailText}>VAT: ${pricingBreakdown.vat.toFixed(2)}</Text>
-                  <Text style={styles.detailText}>Total: ${pricingBreakdown.total.toFixed(2)}</Text>
+                  <Text style={styles.detailText}>
+                    Subtotal: ${(pricingBreakdown?.subTotal ?? 0).toFixed(2)}
+                  </Text>
+                  <Text style={styles.detailText}>
+                    Cleaning Fee: ${(pricingBreakdown?.cleaningFee ?? 0).toFixed(2)}
+                  </Text>
+                  <Text style={styles.detailText}>
+                    Pet Fee: ${(pricingBreakdown?.petFee ?? 0).toFixed(2)}
+                  </Text>
+                  <Text style={styles.detailText}>
+                    VAT: ${(pricingBreakdown?.vat ?? 0).toFixed(2)}
+                  </Text>
+                  <Text style={styles.detailText}>
+                    Total: ${(pricingBreakdown?.total ?? 0).toFixed(2)}
+                  </Text>
                 </View>
               ) : (
                 <Text style={styles.placeholderText}>Price details will appear here.</Text>
@@ -242,13 +252,14 @@ const BookingFlowSheet = forwardRef<BookingFlowSheetRef, BookingFlowSheetProps>(
           </ScrollView>
         </Modalize>
 
+        {/* Render the BookingCalendarModal */}
         <BookingCalendarModal
           visible={isCalendarVisible}
           onClose={closeCalendar}
           propertyId={property.$id}
           propertyPrice={property.pricePerNight}
-          maxGuests={maxGuests}
-          allowPets={allowPets}
+          maxGuests={maxGuestsVal}
+          allowPets={allowPetsVal}
           onConfirm={onCalendarConfirm}
         />
       </>

@@ -12,12 +12,12 @@ import {
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useRouter } from "expo-router";
-import { createProperty, getHouseRules } from "@/lib/appwrite"; // using getHouseRules (a callable function)
+import { createProperty } from "@/lib/appwrite";
+
+
 import AmenitiesPicker from "@/components/AmenitiesPicker";
 import BottomSheetPicker from "@/components/BottomSheetPicker";
 import { useGlobalContext } from "../global-provider";
-import { AmenityTypeEnum } from "../../lib/types"; // Use the imported enum
-
 // Initial form values with selectedAmenities typed as an array of string IDs.
 const initialValues = {
   name: "",
@@ -109,20 +109,7 @@ const allowedAmenitiesMapping: Record<string, string> = {
 export default function PropertySetupWizard() {
   const router = useRouter();
   const [step, setStep] = useState(0);
-  const [houseRulesData, setHouseRulesData] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Fetch house rules on component mount.
-  useEffect(() => {
-    (async () => {
-      try {
-        const fetchedHouseRules = await getHouseRules();
-        setHouseRulesData(fetchedHouseRules);
-      } catch (err) {
-        console.error("Error fetching house rules:", err);
-      }
-    })();
-  }, []);
 
   const { user } = useGlobalContext();
 

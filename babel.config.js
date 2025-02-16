@@ -1,4 +1,4 @@
-module.exports = function (api) {
+module.exports = function(api) {
   api.cache(true);
   return {
     presets: [
@@ -6,6 +6,15 @@ module.exports = function (api) {
       "nativewind/babel",
     ],
     plugins: [
+      [
+        "module-resolver",
+        {
+          root: ["./"],
+          alias: {
+            "@": "./", // This maps "@" to the project root
+          },
+        },
+      ],
       "react-native-reanimated/plugin",
     ],
   };

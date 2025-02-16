@@ -1,9 +1,9 @@
 // expo.config.js
 module.exports = {
-    expo: {
-      // ... any other expo config you already have
-      web: {
-        bundler: "webpack",
-      },
+  expo: {
+    // ... any other Expo config you already have
+    web: {
+      bundler: "metro",
     },
-  };
+  },
+};

@@ -9,10 +9,10 @@ import {
   TextInput,
   Image,
 } from "react-native";
-import { login, account, config } from "@/lib/appwrite";
+import { login, account, config } from "../lib/appwrite";
 import { useRouter } from "expo-router";
 import { useGlobalContext } from "./global-provider";
-import icons from "@/constants/icons";
+import icons from "../constants/icons";
 
 /**
  * Helper function that calls Appwrite’s REST API to create an email session.

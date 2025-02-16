@@ -13,16 +13,16 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import icons from "@/constants/icons";
-import Filters from "@/components/Filters";
-import NoResults from "@/components/NoResults";
-import { Card } from "@/components/Cards";
+import Filters from "../../../components/Filters";
+import NoResults from "../../../components/NoResults";
+import { Card } from "../../../components/Cards";
 
-import { useAppwrite } from "@/lib/useAppwrite";
+import { useAppwrite } from "../../../lib/useAppwrite";
 import { useGlobalContext } from "../../global-provider";
-import { getProperties } from "@/lib/appwrite";
-import { FilterOptions } from "@/lib/types";
+import { getProperties } from "../../../lib/appwrite";
+import { FilterOptions } from "../../../lib/types";
 import { Models } from "react-native-appwrite";
-import { useDebounce } from "@/hooks/useDebounce";
+import { useDebounce } from "../../../hooks/useDebounce";
 
 const Home = () => {
   const { user } = useGlobalContext();

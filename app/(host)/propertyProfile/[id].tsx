@@ -559,7 +559,7 @@ const HostPropertyDetail = () => {
       {/* Main Screen Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
-          <Image source={require('../../assets/icons/cross.png')} style={styles.closeIcon} />
+          <Image source={require('../../../assets/icons/cross.png')} style={styles.closeIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Property Details</Text>
         <View style={styles.headerSpacer} />
@@ -575,14 +575,14 @@ const HostPropertyDetail = () => {
                 style={styles.mainImageCentered}
               />
               <TouchableOpacity style={styles.imageEditButton} onPress={() => imageModalRef.current?.open()}>
-                <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+                <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
               </TouchableOpacity>
             </View>
           ) : (
             <View style={styles.noImagePlaceholderCentered}>
               <Text style={styles.noImageText}>No Main Image</Text>
               <TouchableOpacity onPress={() => imageModalRef.current?.open()} style={styles.uploadButton}>
-                <Image source={require('../../assets/icons/upload.png')} style={styles.uploadIcon} />
+                <Image source={require('../../../assets/icons/upload.png')} style={styles.uploadIcon} />
                 <Text style={styles.addImageButtonText}>Add Images</Text>
               </TouchableOpacity>
             </View>
@@ -594,7 +594,7 @@ const HostPropertyDetail = () => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Title</Text>
             <TouchableOpacity onPress={() => propertyInfoModalRef.current?.open()}>
-              <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+              <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
             </TouchableOpacity>
           </View>
           <Text style={styles.infoText}>{propertyTitle}</Text>
@@ -605,7 +605,7 @@ const HostPropertyDetail = () => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Pricing</Text>
             <TouchableOpacity onPress={() => pricingModalRef.current?.open()}>
-              <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+              <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
             </TouchableOpacity>
           </View>
           {pricingRules ? (
@@ -639,7 +639,7 @@ const HostPropertyDetail = () => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Booking Rules</Text>
             <TouchableOpacity onPress={() => bookingRulesModalRef.current?.open()}>
-              <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+              <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
             </TouchableOpacity>
           </View>
           {bookingRules ? (
@@ -659,7 +659,7 @@ const HostPropertyDetail = () => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Cancellation Policy</Text>
             <TouchableOpacity onPress={() => cancellationModalRef.current?.open()}>
-              <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+              <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
             </TouchableOpacity>
           </View>
           <View style={styles.infoBlock}>
@@ -674,7 +674,7 @@ const HostPropertyDetail = () => {
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>House Rules</Text>
             <TouchableOpacity onPress={() => houseRulesModalRef.current?.open()}>
-              <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+              <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
             </TouchableOpacity>
           </View>
           {houseRules ? (
@@ -700,7 +700,7 @@ const HostPropertyDetail = () => {
         >
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle}>Update Amenities</Text>
-            <Image source={require('../../assets/icons/edit.png')} style={styles.editIcon} />
+            <Image source={require('../../../assets/icons/edit.png')} style={styles.editIcon} />
           </View>
           {property.amenities && property.amenities.length > 0 ? (
             <Text style={styles.infoText}>{property.amenities.join(", ")}</Text>
@@ -991,7 +991,7 @@ const HostPropertyDetail = () => {
         <View style={{ flex: 1 }}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => imageModalRef.current?.close()}>
-              <Image source={require('../../assets/icons/cross.png')} style={styles.modalCloseIcon} />
+              <Image source={require('../../../assets/icons/cross.png')} style={styles.modalCloseIcon} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Manage Images</Text>
             <View style={{ width: 24 }} />
@@ -1011,13 +1011,13 @@ const HostPropertyDetail = () => {
                   <View style={styles.mainImageEditRow}>
                     <Text style={styles.replaceText}>Replace Main Image</Text>
                     <TouchableOpacity onPress={openMainImagePicker}>
-                      <Image source={require('../../assets/icons/edit.png')} style={styles.editIconSmall} />
+                      <Image source={require('../../../assets/icons/edit.png')} style={styles.editIconSmall} />
                     </TouchableOpacity>
                   </View>
                 </View>
               ) : (
                 <TouchableOpacity style={styles.addMainImageButton} onPress={openMainImagePicker}>
-                  <Image source={require('../../assets/icons/upload.png')} style={styles.uploadIcon} />
+                  <Image source={require('../../../assets/icons/upload.png')} style={styles.uploadIcon} />
                   <Text style={styles.addImageButtonText}>Add Main Image</Text>
                 </TouchableOpacity>
               )}
@@ -1057,14 +1057,14 @@ const HostPropertyDetail = () => {
                         ])
                       }
                     >
-                      <Image source={require('../../assets/icons/trash.png')} style={styles.galleryDeleteIcon} />
+                      <Image source={require('../../../assets/icons/trash.png')} style={styles.galleryDeleteIcon} />
                     </TouchableOpacity>
                   </View>
                 ))}
 
                 <TouchableOpacity style={styles.galleryCard} onPress={openGalleryImagePicker}>
                   <View style={styles.addGalleryCard}>
-                    <Image source={require('../../assets/icons/upload.png')} style={styles.uploadIcon} />
+                    <Image source={require('../../../assets/icons/upload.png')} style={styles.uploadIcon} />
                     <Text style={styles.addGalleryText}>Add Gallery Image</Text>
                   </View>
                 </TouchableOpacity>

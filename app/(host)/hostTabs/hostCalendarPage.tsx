@@ -185,7 +185,7 @@ const HostCalendarPage: React.FC = () => {
       {/* Header with Close Button */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.pageCloseButton} onPress={() => router.back()}>
-          <Image source={require('../../assets/icons/cross.png')} style={styles.pageCloseIcon} />
+          <Image source={require('../../../assets/icons/cross.png')} style={styles.pageCloseIcon} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Host Calendar</Text>
       </View>
@@ -205,7 +205,7 @@ const HostCalendarPage: React.FC = () => {
               />
               <Text style={styles.propertyCardText}>{prop.name}</Text>
               <Image
-                source={require('../../assets/icons/edit.png')}
+                source={require('../../../assets/icons/edit.png')}
                 style={styles.editIcon}
               />
             </View>
@@ -222,7 +222,7 @@ const HostCalendarPage: React.FC = () => {
         <View style={styles.modalHeader}>
           {/* Cross Icon in Modal Header */}
           <TouchableOpacity onPress={() => modalizeRef.current?.close()}>
-            <Image source={require('../../assets/icons/cross.png')} style={styles.modalCloseIcon} />
+            <Image source={require('../../../assets/icons/cross.png')} style={styles.modalCloseIcon} />
           </TouchableOpacity>
         </View>
         {pricingData && pricingData.priceRules && (

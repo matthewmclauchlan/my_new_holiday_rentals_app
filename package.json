@@ -3,12 +3,12 @@
   "main": "expo-router/entry",
   "version": "1.0.0",
   "scripts": {
-    "start": "expo start",
+    "start": "expo start--web",
+    "build": "npx expo export:web",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "build": "expo build:web",
     "test": "jest --watchAll",
     "lint": "expo lint"
   },
@@ -31,7 +31,7 @@
     "contentful": "^11.4.6",
     "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
-    "expo": "~52.0.17",
+    "expo": "^52.0.35",
     "expo-blur": "~14.0.1",
     "expo-checkbox": "~4.0.1",
     "expo-constants": "~17.0.3",

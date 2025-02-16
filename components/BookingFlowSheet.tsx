@@ -2,8 +2,8 @@ import React, { useState, forwardRef, useImperativeHandle, useEffect } from 'rea
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, ActivityIndicator } from 'react-native';
 import { Modalize } from 'react-native-modalize';
 import BookingCalendarModal from './BookingCalendarModal';
-import { getHouseRulesForProperty } from '@/lib/appwrite';
-import { getDatesInRange } from '@/lib/utils';
+import { getHouseRulesForProperty } from '../lib/appwrite';
+import { getDatesInRange } from '../lib/utils';
 
 export interface BookingFlowSheetRef {
   open: () => void;

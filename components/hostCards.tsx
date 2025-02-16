@@ -9,8 +9,8 @@ import {
   StyleSheet,
 } from "react-native";
 import { Models } from "react-native-appwrite";
-import icons from "@/constants/icons";
-import images from "@/constants/images";
+import icons from "../constants/icons";
+import images from "../constants/images";
 
 const localPlaceholder = require("../assets/images/japan.png");
 

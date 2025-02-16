@@ -1,4 +1,4 @@
-import { Amenity } from "@/lib/types";
+import { Amenity } from "../lib/types";
 
 export interface AmenitySection {
   title: string;

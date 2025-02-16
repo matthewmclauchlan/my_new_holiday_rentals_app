@@ -14,11 +14,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import Constants from "expo-constants";
 
-import Comment from "@/components/Comment";
-import { facilities } from "@/constants/data";
-import { useAppwrite } from "@/lib/useAppwrite";
-import { getPropertyById } from "@/lib/appwrite";
-import BookingFlowSheet, { BookingFlowSheetRef } from "@/components/BookingFlowSheet";
+import Comment from "../../components/Comment";
+import { facilities } from "../../constants/data";
+import { useAppwrite } from "../../lib/useAppwrite";
+import { getPropertyById } from "../../lib/appwrite";
+import BookingFlowSheet, { BookingFlowSheetRef } from "../../components/BookingFlowSheet";
 
 const { width: windowWidth, height: windowHeight } = Dimensions.get("window");
 // Set the image slider height to 1/3 of the screen

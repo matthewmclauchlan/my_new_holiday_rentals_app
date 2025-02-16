@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { Tabs } from "expo-router";
 import { View, Text, Image, StyleSheet } from "react-native";
-import icons from "@/constants/icons";
+import icons from "../../../constants/icons";
 import { getCurrentUser, getRolesForUser } from "../../../lib/appwrite";
 
 // A simple TabIcon component for the guest tabs

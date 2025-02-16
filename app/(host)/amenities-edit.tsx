@@ -9,13 +9,13 @@ import {
   Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import AmenitiesPicker from '@/components/AmenitiesPicker';
-import SaveButton from '@/components/saveButton';
-import { getPropertyById, databases } from '@/lib/appwrite';
+import AmenitiesPicker from '../../components/AmenitiesPicker';
+import SaveButton from '../../components/saveButton';
+import { getPropertyById, databases } from '../../lib/appwrite';
 import Constants from 'expo-constants';
-import { useGlobalContext } from '@/app/global-provider';
+import { useGlobalContext } from '../../app/global-provider';
 // Use the normalization functions from your utils file.
-import { normalizeString, normalizeAmenity } from "@/lib/utils";
+import { normalizeString, normalizeAmenity } from "../../lib/utils";
 
 const extra = Constants.manifest?.extra || Constants.expoConfig?.extra || {};
 const { appwriteDatabaseId, appwritePropertiesCollectionId } = extra;

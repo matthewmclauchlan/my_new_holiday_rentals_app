@@ -1,6 +1,6 @@
 import { View, Text, Image } from "react-native";
-import images from "@/constants/images";
-import icons from "@/constants/icons";
+import images from "../constants/images";
+import icons from "../constants/icons";
 
 interface CommentProps {
   item: {

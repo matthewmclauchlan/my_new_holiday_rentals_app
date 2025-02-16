@@ -77,7 +77,7 @@ export default function HelpArticleScreen() {
       <ScrollView contentContainerStyle={styles.container}>
         {/* Close Icon */}
         <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-          <Image source={require('@/assets/icons/cross.png')} style={styles.closeIcon} />
+          <Image source={require('../../assets/icons/cross.png')} style={styles.closeIcon} />
         </TouchableOpacity>
 
         <Text style={styles.title}>{title || "Untitled Article"}</Text>

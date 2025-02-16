@@ -7,10 +7,10 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useAppwrite } from "@/lib/useAppwrite";
-import { getAmenities } from "@/lib/appwrite";
-import { Amenity } from "@/lib/types";
-import { groupAmenitiesByFirstLetter, normalizeAmenity } from "@/lib/utils";
+import { useAppwrite } from "../lib/useAppwrite";
+import { getAmenities } from "../lib/appwrite";
+import { Amenity } from "../lib/types";
+import { groupAmenitiesByFirstLetter, normalizeAmenity } from "../lib/utils";
 
 interface AmenitySection {
   title: string;

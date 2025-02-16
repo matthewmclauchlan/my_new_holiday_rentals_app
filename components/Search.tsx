@@ -4,7 +4,7 @@ import { View, TouchableOpacity, Image, TextInput, Text, StyleSheet } from "reac
 import { useDebouncedCallback } from "use-debounce";
 import DateTimePicker from "@react-native-community/datetimepicker";
 
-import icons from "@/constants/icons";
+import icons from "../constants/icons";
 import { useLocalSearchParams, router, usePathname } from "expo-router";
 
 const Search = () => {

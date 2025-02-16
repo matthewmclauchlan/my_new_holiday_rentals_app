@@ -1,6 +1,6 @@
 // lib/bookingHelper.ts
 import { Query } from "./appwrite"; // Make sure you have installed the official appwrite SDK
-import { databases } from "@/lib/appwrite"; // your helper already exports databases
+import { databases } from "../lib/appwrite"; // your helper already exports databases
 
 export const getBookingRulesForProperty = async (propertyId: string) => {
   try {

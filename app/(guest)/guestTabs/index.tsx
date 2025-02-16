@@ -12,7 +12,7 @@ import {
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import icons from "@/constants/icons";
+import icons from "../../../constants/icons";
 import Filters from "../../../components/Filters";
 import NoResults from "../../../components/NoResults";
 import { Card } from "../../../components/Cards";
@@ -94,7 +94,7 @@ const Home = () => {
       >
         <Text style={styles.searchBarText}>Start your search</Text>
         <View style={styles.searchIconContainer}>
-          <Image source={require("@/assets/icons/search.png")} style={styles.searchIcon} />
+          <Image source={require("../../../assets/icons/search.png")} style={styles.searchIcon} />
         </View>
       </TouchableOpacity>
 

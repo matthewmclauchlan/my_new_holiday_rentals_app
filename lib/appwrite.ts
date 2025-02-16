@@ -12,7 +12,7 @@ import {
 } from "react-native-appwrite";
 import * as Linking from "expo-linking";
 import { openAuthSessionAsync } from "expo-web-browser";
-import { FilterOptions } from "@/lib/types"; // Already defined in types.ts
+import { FilterOptions } from "../lib/types"; // Already defined in types.ts
 import Constants from "expo-constants";
 import * as ImagePicker from "expo-image-picker";
 

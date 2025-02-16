@@ -11,7 +11,7 @@ import {
   Pressable,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getHostProfileByUserId } from "@/lib/appwrite";
+import { getHostProfileByUserId } from "../../lib/appwrite";
 import { useGlobalContext } from "../global-provider";
 
 type ApprovalStatus = "pending" | "approved" | "rejected";

@@ -22,7 +22,7 @@ import {
   getHouseRulesForProperty,
   getPriceRulesForProperty,
   getPriceAdjustmentsForProperty,
-} from "@/lib/appwrite";
+} from "../lib/appwrite";
 
 // Interface for the price rules document.
 interface PriceRulesData {

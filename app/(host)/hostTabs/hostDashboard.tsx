@@ -12,8 +12,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useGlobalContext } from "../../global-provider";
-import { getPropertiesByUser } from "@/lib/appwrite";
-import icons from "@/constants/icons";
+import { getPropertiesByUser } from "../../../lib/appwrite";
+import icons from "../../../constants/icons";
 import { parse } from "date-fns";
 
 const statusFilters = ["Upcoming", "Current", "Check Out"];

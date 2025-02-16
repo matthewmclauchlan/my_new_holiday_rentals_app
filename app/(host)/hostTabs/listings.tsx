@@ -10,7 +10,7 @@ import {
   StyleSheet,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { getPropertiesByUser } from "@/lib/appwrite";
+import { getPropertiesByUser } from "../../../lib/appwrite";
 import { useGlobalContext } from "../../global-provider";
 
 // Fallback placeholder image for properties
@@ -72,7 +72,7 @@ const Listings = () => {
           <Image source={imageSource} style={styles.propertyImage} />
           <Text style={styles.propertyCardText}>{item.name}</Text>
           <Image
-            source={require('@/assets/icons/edit.png')}
+            source={require('../../assets/icons/edit.png')}
             style={styles.editIcon}
           />
         </View>
@@ -87,7 +87,7 @@ const Listings = () => {
       onPress={() => router.push("../property-setup")}
     >
       <Text style={styles.addListingText}>Add New Listing</Text>
-      <Image source={require('@/assets/icons/add.png')} style={styles.addIcon} />
+      <Image source={require('../../assets/icons/add.png')} style={styles.addIcon} />
     </TouchableOpacity>
   );
 

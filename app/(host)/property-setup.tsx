@@ -12,11 +12,11 @@ import {
 import { Formik } from "formik";
 import * as Yup from "yup";
 import { useRouter } from "expo-router";
-import { createProperty } from "@/lib/appwrite";
+import { createProperty } from "../../lib/appwrite";
 
 
-import AmenitiesPicker from "@/components/AmenitiesPicker";
-import BottomSheetPicker from "@/components/BottomSheetPicker";
+import AmenitiesPicker from "../../components/AmenitiesPicker";
+import BottomSheetPicker from "../../components/BottomSheetPicker";
 import { useGlobalContext } from "../global-provider";
 // Initial form values with selectedAmenities typed as an array of string IDs.
 const initialValues = {

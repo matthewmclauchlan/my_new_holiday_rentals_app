@@ -162,7 +162,7 @@ const HostCalendarPage: React.FC = () => {
 
   // Function to compute the main image URL from property.images array.
   const getPropertyImageSource = (prop: Property) => {
-    let imageSource = require('../../assets/images/japan.png'); // fallback
+    let imageSource = require('../../../assets/images/japan.png'); // fallback
     if (prop.images && Array.isArray(prop.images) && prop.images.length > 0) {
       try {
         const parsedImages = prop.images.map((imgString: string) =>

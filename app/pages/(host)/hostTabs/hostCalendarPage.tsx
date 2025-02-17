@@ -11,7 +11,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { Modalize } from "react-native-modalize";
-import PricingCalendarBottomSheet from "../../../components/PricingCalendarBottomSheet";
+import PricingCalendarBottomSheet from "../../../../components/PricingCalendarBottomSheet";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import {
   getPropertiesByUser,
@@ -19,8 +19,8 @@ import {
   getBookingsForProperty,
   getPriceAdjustmentsForProperty,
   getCurrentUserId,
-} from "../../../lib/appwrite";
-import { handleSaveAdjustments } from "../../../lib/priceHelpers";
+} from "../../../../lib/appwrite";
+import { handleSaveAdjustments } from "../../../../lib/priceHelpers";
 
 // Updated interface to include images field.
 interface Property {

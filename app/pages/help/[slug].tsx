@@ -10,9 +10,9 @@ import {
   Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import client from '../../lib/contentful';
-import type { HelpArticle } from '../../lib/types';
-import renderRichText from '../../lib/renderRichText';
+import client from '../../../lib/contentful';
+import type { HelpArticle } from '../../../lib/types';
+import renderRichText from '../../../lib/renderRichText';
 
 export default function HelpArticleScreen() {
   const { slug } = useLocalSearchParams<{ slug: string }>();

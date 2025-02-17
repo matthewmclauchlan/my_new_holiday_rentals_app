@@ -45,3 +45,4 @@ const Comment: React.FC<CommentProps> = ({ item }) => {
 };
 
 
+export default Comment;

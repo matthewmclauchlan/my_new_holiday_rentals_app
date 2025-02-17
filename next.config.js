@@ -1,8 +1,5 @@
-// next.config.js
-const { withExpo } = require('@expo/next-adapter');
-
-module.exports = withExpo({
-  projectRoot: __dirname,
-  // Optionally, you can specify a custom output directory:
-  // distDir: '.next',
-});
+module.exports = {
+  // supported config options, e.g.:
+  reactStrictMode: true,
+  // etc.
+};

@@ -11,7 +11,7 @@ import {
   FlatList,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useGlobalContext } from "../../global-provider";
+import { useGlobalContext } from "../../../global-provider";
 import { getPropertiesByUser } from "../../../../lib/appwrite";
 import icons from "../../../../constants/icons";
 import { parse } from "date-fns";

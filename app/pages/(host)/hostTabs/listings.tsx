@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { getPropertiesByUser } from "../../../../lib/appwrite";
-import { useGlobalContext } from "../../global-provider";
+import { useGlobalContext } from "../../../global-provider";
 
 // Fallback placeholder image for properties
 const localPlaceholder = require("../../../assets/images/no-result.png");

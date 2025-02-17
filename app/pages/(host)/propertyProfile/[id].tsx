@@ -33,7 +33,7 @@ import {
   databases,
 } from "../../../../lib/appwrite";
 import { getBookingRulesForProperty } from "../../../../lib/bookingHelper";
-import { useGlobalContext } from "../../global-provider";
+import { useGlobalContext } from "../../../global-provider";
 
 // Import the Appwrite ID helper as an alias to avoid conflict with local variable "id"
 import { ID as AppwriteID } from "react-native-appwrite";

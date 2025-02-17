@@ -1,7 +1,7 @@
 import React, { createContext, useContext, ReactNode, useEffect, useState } from "react";
-import { getCurrentUser, getHostProfileByUserId, getRolesForUser } from "../../lib/appwrite";
-import { useAppwrite } from "../../lib/useAppwrite";
-import { HostProfile, User } from "../../lib/types";
+import { getCurrentUser, getHostProfileByUserId, getRolesForUser } from "../lib/appwrite";
+import { useAppwrite } from "../lib/useAppwrite";
+import { HostProfile, User } from "../lib/types";
 
 interface GlobalContextType {
   isLogged: boolean;

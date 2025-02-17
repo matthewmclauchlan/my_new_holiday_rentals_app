@@ -10,7 +10,7 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { useGlobalContext } from "../../global-provider";
+import { useGlobalContext } from "../../../global-provider";
 import { getBookingsByHost } from "../../../../lib/appwrite"; // Ensure this function is correctly implemented.
 import { Models } from "react-native-appwrite";
 import { parse } from "date-fns";

@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { logout } from "../../../../lib/appwrite";
-import { useGlobalContext } from "../../global-provider";
+import { useGlobalContext } from "../../../global-provider";
 import icons from "../../../../constants/icons";
 
 const Menu= () => {

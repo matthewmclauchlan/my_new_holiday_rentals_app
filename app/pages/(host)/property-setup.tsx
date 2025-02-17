@@ -17,7 +17,7 @@ import { createProperty } from "../../../lib/appwrite";
 
 import AmenitiesPicker from "../../../components/AmenitiesPicker";
 import BottomSheetPicker from "../../../components/BottomSheetPicker";
-import { useGlobalContext } from "../global-provider";
+import { useGlobalContext } from "../../global-provider";
 // Initial form values with selectedAmenities typed as an array of string IDs.
 const initialValues = {
   name: "",

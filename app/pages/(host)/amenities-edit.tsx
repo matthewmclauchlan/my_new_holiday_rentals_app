@@ -13,7 +13,7 @@ import AmenitiesPicker from '../../../components/AmenitiesPicker';
 import SaveButton from '../../../components/saveButton';
 import { getPropertyById, databases } from '../../../lib/appwrite';
 import Constants from 'expo-constants';
-import { useGlobalContext } from '../global-provider';
+import { useGlobalContext } from '../../global-provider';
 // Use the normalization functions from your utils file.
 import { normalizeString, normalizeAmenity } from "../../../lib/utils";
 

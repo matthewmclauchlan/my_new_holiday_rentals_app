@@ -18,7 +18,7 @@ import NoResults from "../../../../components/NoResults";
 import { Card } from "../../../../components/Cards";
 
 import { useAppwrite } from "../../../../lib/useAppwrite";
-import { useGlobalContext } from "../../global-provider";
+import { useGlobalContext } from "../../../global-provider";
 import { getProperties } from "../../../../lib/appwrite";
 import { FilterOptions } from "../../../../lib/types";
 import { Models } from "react-native-appwrite";

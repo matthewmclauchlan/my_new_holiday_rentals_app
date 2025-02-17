@@ -13,9 +13,9 @@ import {
   Button,
 } from "react-native";
 import { useRouter, Redirect } from "expo-router";
-import { logout, getPropertiesByUser, getHostProfileByUserId } from "../../../lib/appwrite";
-import { useGlobalContext } from "../../global-provider";
-import icons from "../../../constants/icons";
+import { logout, getPropertiesByUser, getHostProfileByUserId } from "../../../../lib/appwrite";
+import { useGlobalContext } from "../../../global-provider";
+import icons from "../../../../constants/icons";
 
 const Profile = () => {
   const { user, refetch } = useGlobalContext();

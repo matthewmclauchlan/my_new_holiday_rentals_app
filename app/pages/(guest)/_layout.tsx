@@ -2,7 +2,7 @@ import { Redirect, Slot } from "expo-router";
 import { ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { useGlobalContext } from "../global-provider";
+import { useGlobalContext } from "../../global-provider";
 
 export default function AppLayout() {
   const { loading, isLogged } = useGlobalContext();

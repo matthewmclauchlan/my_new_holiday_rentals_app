@@ -13,9 +13,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
-import { useGlobalContext } from "../global-provider";
+import { useGlobalContext } from "../../global-provider";
 // Import functions from your Appwrite lib
-import { upsertHostProfile, addOwnerRole, config, storage } from "../../lib/appwrite";
+import { upsertHostProfile, addOwnerRole, config, storage } from "../../../lib/appwrite";
 
 import * as ImagePicker from "expo-image-picker";
 import { ID, Databases, Client } from "react-native-appwrite";

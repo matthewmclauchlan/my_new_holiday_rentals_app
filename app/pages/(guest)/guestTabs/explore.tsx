@@ -11,17 +11,17 @@ import {
 import { useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import Search from "../../../components/Search";
-import Filters from "../../../components/Filters";
-import NoResults from "../../../components/NoResults";
-import { Card } from "../../../components/Cards";
+import Search from "../../../../components/Search";
+import Filters from "../../../../components/Filters";
+import NoResults from "../../../../components/NoResults";
+import { Card } from "../../../../components/Cards";
 
-import { useAppwrite } from "../../../lib/useAppwrite";
-import { getProperties } from "../../../lib/appwrite";
-import { FilterOptions } from "../../../lib/types";
+import { useAppwrite } from "../../../../lib/useAppwrite";
+import { getProperties } from "../../../../lib/appwrite";
+import { FilterOptions } from "../../../../lib/types";
 import { Models } from "react-native-appwrite";
 
-import { useDebounce } from "../../../hooks/useDebounce";
+import { useDebounce } from "../../../../hooks/useDebounce";
 
 const Explore = () => {
   const params = useLocalSearchParams<{ query?: string; filter?: string }>();

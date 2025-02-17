@@ -8,7 +8,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import "./global.css";
-import GlobalProvider from "./global-provider";
+import GlobalProvider from "../pages/global-provider";
 
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({

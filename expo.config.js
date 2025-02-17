@@ -1,9 +1,9 @@
-// expo.config.js
 module.exports = {
   expo: {
     // ... any other Expo config you already have
-    web: {
-      bundler: "metro",
-    },
+    // Remove or comment out the web bundler override
+    // web: {
+    //   bundler: "metro",
+    // },
   },
 };

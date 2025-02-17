@@ -3,4 +3,5 @@ const { withExpo } = require('@expo/next-adapter');
 module.exports = withExpo({
   projectRoot: __dirname,
   reactStrictMode: true,
+  transpilePackages: ['expo-router'],
 });

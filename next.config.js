@@ -1,5 +1,6 @@
-module.exports = {
-  // supported config options, e.g.:
+const { withExpo } = require('@expo/next-adapter');
+
+module.exports = withExpo({
+  projectRoot: __dirname,
   reactStrictMode: true,
-  // etc.
-};
+});

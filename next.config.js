@@ -9,6 +9,7 @@ module.exports = withExpo({
       test: /\.mjs$/,
       include: /node_modules/,
       type: 'javascript/auto',
+      resolve: { fullySpecified: false },
     });
     return config;
   },
